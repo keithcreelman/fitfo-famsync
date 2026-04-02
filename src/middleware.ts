@@ -29,7 +29,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
+
+  // If there's an auth code on any page, redirect to /auth/callback to exchange it
+  const code = searchParams.get("code");
+  if (code && !pathname.startsWith("/auth/callback")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
 
   // Public routes that don't need auth
   const publicRoutes = ["/login", "/invite"];
