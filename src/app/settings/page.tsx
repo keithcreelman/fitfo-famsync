@@ -11,6 +11,10 @@ import {
   Calendar,
   LogOut,
   ChevronRight,
+  RefreshCw,
+  Link,
+  Loader2,
+  Check,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import CalendarPrivacyPopup from "@/components/CalendarPrivacyPopup";
@@ -25,34 +29,48 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [calendarPopupOpen, setCalendarPopupOpen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState<"link" | "code" | null>(null);
+  const [userId, setUserId] = useState("");
+  const [icsUrl, setIcsUrl] = useState("");
+  const [icsUrlInput, setIcsUrlInput] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState("");
 
   const loadData = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+    setUserId(user.id);
 
     const { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
     setProfile(profileData);
 
-    const { data: membership } = await supabase
+    const { data: memberships } = await supabase
       .from("household_members")
       .select("household_id")
       .eq("user_id", user.id)
       .eq("invite_status", "accepted")
-      .single();
+      .limit(1);
+    const membership = memberships?.[0] || null;
 
     if (membership) {
       const { data: householdData } = await supabase
         .from("households")
         .select("*")
         .eq("id", membership.household_id)
-        .single();
+        .maybeSingle();
       setHousehold(householdData);
+
+      // Load saved ICS URL from localStorage
+      const savedIcs = localStorage.getItem(`ics_url_${membership.household_id}`);
+      if (savedIcs) {
+        setIcsUrl(savedIcs);
+        setIcsUrlInput(savedIcs);
+      }
 
       const { data: childrenData } = await supabase
         .from("children")
@@ -68,6 +86,38 @@ export default function SettingsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  async function handleSyncIcs() {
+    if (!icsUrlInput.trim() || !household || !userId) return;
+    setSyncing(true);
+    setSyncResult("");
+
+    // Save URL
+    localStorage.setItem(`ics_url_${household.id}`, icsUrlInput.trim());
+    setIcsUrl(icsUrlInput.trim());
+
+    try {
+      const res = await fetch("/api/sync-ics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ics_url: icsUrlInput.trim(),
+          household_id: household.id,
+          user_id: userId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncResult(`Error: ${data.error}`);
+      } else {
+        setSyncResult(`Synced! ${data.added} new, ${data.updated} updated, ${data.unchanged} unchanged`);
+      }
+    } catch (err) {
+      setSyncResult(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -193,6 +243,53 @@ export default function SettingsPage() {
               <ChevronRight className="w-4 h-4" />
             </div>
           </button>
+        </section>
+
+        {/* ICS Calendar Subscriptions */}
+        <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
+              Calendar Feeds
+            </h2>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Paste an ICS calendar URL from OttoSport, TeamSnap, or any sports platform. Events sync automatically.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={icsUrlInput}
+                onChange={(e) => setIcsUrlInput(e.target.value)}
+                placeholder="https://...calendar.ics"
+                className="flex-1 px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+              <button
+                onClick={handleSyncIcs}
+                disabled={syncing || !icsUrlInput.trim()}
+                className="px-4 py-2.5 bg-[var(--color-primary)] text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+              >
+                {syncing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : icsUrl ? (
+                  <RefreshCw className="w-4 h-4" />
+                ) : (
+                  <Link className="w-4 h-4" />
+                )}
+                {syncing ? "Syncing" : icsUrl ? "Sync" : "Add"}
+              </button>
+            </div>
+            {syncResult && (
+              <div className={`text-sm p-2.5 rounded-lg ${syncResult.startsWith("Error") || syncResult.startsWith("Failed") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+                {syncResult}
+              </div>
+            )}
+            {icsUrl && !syncResult && (
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> Feed connected
+              </p>
+            )}
+          </div>
         </section>
 
         {/* Sign out */}
