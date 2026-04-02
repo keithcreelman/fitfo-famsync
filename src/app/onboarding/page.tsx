@@ -158,55 +158,24 @@ export default function OnboardingPage() {
       console.log("[onboarding] handleHouseholdNext - user:", user?.id);
       if (!user) { setLoading(false); setErrorMsg("Not logged in. Refresh and try again."); return; }
 
-      const code = generateInviteCode();
-      console.log("[onboarding] generated invite code:", code);
-
-      // Step 1: Create household (without invite_code first, in case column is missing)
-      const { data: household, error: hhErr } = await supabase
-        .from("households")
-        .insert({
-          name: householdName.trim(),
-          created_by: user.id,
-        })
-        .select()
-        .single();
-      console.log("[onboarding] household insert:", household?.id, "error:", hhErr);
-
-      if (hhErr || !household) {
-        setErrorMsg(`Failed to create household: ${hhErr?.message || "unknown error"}`);
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: Try to set invite_code (may fail if column doesn't exist yet)
-      const { error: codeErr } = await supabase
-        .from("households")
-        .update({ invite_code: code })
-        .eq("id", household.id);
-      console.log("[onboarding] invite_code update error:", codeErr);
-      // Non-fatal — app still works without it, just no invite code shown
-
-      setHouseholdId(household.id);
-      sessionStorage.setItem("onboarding_householdId", household.id);
-      setInviteCode(codeErr ? "" : code);
-      if (!codeErr) sessionStorage.setItem("onboarding_inviteCode", code);
-
-      // Step 3: Add creator as accepted member
-      const { error: memberErr } = await supabase.from("household_members").insert({
-        household_id: household.id,
-        user_id: user.id,
-        role: "parent",
-        invite_status: "accepted",
-        joined_at: new Date().toISOString(),
-        privacy_acknowledged_at: new Date().toISOString(),
+      // Use SECURITY DEFINER function to bypass RLS for household + member creation
+      const { data, error: rpcErr } = await supabase.rpc("create_household_with_member", {
+        p_name: householdName.trim(),
+        p_user_id: user.id,
       });
-      console.log("[onboarding] member insert error:", memberErr);
+      console.log("[onboarding] create_household_with_member result:", data, "error:", rpcErr);
 
-      if (memberErr) {
-        setErrorMsg(`Failed to create membership: ${memberErr.message}`);
+      if (rpcErr || !data) {
+        setErrorMsg(`Failed to create household: ${rpcErr?.message || "unknown error"}`);
         setLoading(false);
         return;
       }
+
+      const { household_id, invite_code } = data;
+      setHouseholdId(household_id);
+      sessionStorage.setItem("onboarding_householdId", household_id);
+      setInviteCode(invite_code || "");
+      if (invite_code) sessionStorage.setItem("onboarding_inviteCode", invite_code);
 
       setLoading(false);
       setStep("children");
