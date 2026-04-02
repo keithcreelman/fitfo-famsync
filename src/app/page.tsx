@@ -21,31 +21,53 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
+  const [debugInfo, setDebugInfo] = useState("");
+
   const loadData = useCallback(async () => {
+    let debug = "";
+
     const {
       data: { user },
+      error: userErr,
     } = await supabase.auth.getUser();
-    if (!user) return;
+    debug += `auth.getUser: ${user?.id || "NULL"} err: ${userErr?.message || "none"}\n`;
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    debug += `session: ${session ? "YES" : "NULL"} token: ${session?.access_token ? session.access_token.substring(0, 20) + "..." : "none"}\n`;
+
+    if (!user) {
+      debug += "NO USER — stopping\n";
+      setDebugInfo(debug);
+      setLoading(false);
+      return;
+    }
     setUser(user);
 
     // Get profile
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profErr } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .maybeSingle();
+    debug += `profile: ${profileData ? profileData.display_name : "NULL"} err: ${profErr?.message || "none"}\n`;
     setProfile(profileData);
 
     // Get household membership
-    const { data: membership } = await supabase
+    const { data: membership, error: memErr } = await supabase
       .from("household_members")
       .select("household_id")
       .eq("user_id", user.id)
       .eq("invite_status", "accepted")
       .maybeSingle();
+    debug += `membership: ${membership ? membership.household_id : "NULL"} err: ${memErr?.message || "none"}\n`;
 
     if (!membership) {
-      router.replace("/onboarding");
+      debug += "NO MEMBERSHIP — would redirect to /onboarding\n";
+      setDebugInfo(debug);
+      setLoading(false);
+      // Temporarily show debug instead of redirecting
       return;
     }
 
@@ -160,6 +182,20 @@ export default function HomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // DEBUG: show auth/db state if no household found
+  if (debugInfo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="w-full max-w-md">
+          <h2 className="text-lg font-bold mb-3">Debug Info</h2>
+          <pre className="bg-gray-100 p-4 rounded-xl text-xs whitespace-pre-wrap break-all font-mono">{debugInfo}</pre>
+          <button onClick={() => { setLoading(true); setDebugInfo(""); loadData(); }} className="mt-4 w-full py-3 bg-[var(--color-primary)] text-white rounded-xl font-semibold">Retry</button>
+          <button onClick={() => router.push("/onboarding")} className="mt-2 w-full py-3 border border-[var(--color-border)] rounded-xl font-semibold">Go to Onboarding</button>
+        </div>
       </div>
     );
   }
