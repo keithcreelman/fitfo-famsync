@@ -110,15 +110,25 @@ function ImportReviewContent() {
             method: "POST",
             body: formData,
           });
-          const data = await res.json();
+
+          const responseText = await res.text();
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            setParseError(`Server returned non-JSON (status ${res.status}): ${responseText.substring(0, 200)}`);
+            continue;
+          }
 
           if (!res.ok) {
-            setParseError(`Failed to parse ${f.name}: ${data.error || "unknown error"}`);
+            setParseError(`Failed (${res.status}): ${data.error || responseText.substring(0, 200)}`);
             continue;
           }
 
           if (data.events && data.events.length > 0) {
             allEvents.push(...data.events);
+          } else {
+            setParseError(`API returned OK but no events. Response: ${JSON.stringify(data).substring(0, 200)}`);
           }
         }
 
