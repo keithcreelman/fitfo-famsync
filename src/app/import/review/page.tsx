@@ -240,9 +240,25 @@ function ImportReviewContent() {
       }
     } catch (error) {
       console.error("Parse error:", error);
+      setParseError(`Upload error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setParsing(false);
     }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const additional = Array.from(files).slice(1);
+      handleFileUpload(files[0], additional);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
   }
 
   function applyCsvMapping() {
@@ -371,7 +387,7 @@ function ImportReviewContent() {
           </div>
         ) : !file ? (
           /* File upload */
-          <label className="block cursor-pointer">
+          <label className="block cursor-pointer" onDrop={handleDrop} onDragOver={handleDragOver}>
             <div className="border-2 border-dashed border-[var(--color-border)] rounded-xl p-12 text-center hover:border-[var(--color-primary)] transition-colors">
               {importType === "screenshot" ? (
                 <Camera className="w-12 h-12 text-[var(--color-text-secondary)] mx-auto mb-3" />

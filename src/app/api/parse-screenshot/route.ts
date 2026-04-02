@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Extend timeout to max allowed (60s Pro, 10s Free)
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { error: "ANTHROPIC_API_KEY not configured on server" },
+        { status: 500 }
+      );
+    }
+
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const childrenNames = formData.get("children_names") as string;
@@ -19,17 +29,18 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
 
-    const mediaType = file.type as
-      | "image/jpeg"
-      | "image/png"
-      | "image/gif"
-      | "image/webp";
+    // Detect media type, default to jpeg
+    let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
+    if (file.type === "image/png") mediaType = "image/png";
+    else if (file.type === "image/gif") mediaType = "image/gif";
+    else if (file.type === "image/webp") mediaType = "image/webp";
 
     const today = new Date().toISOString().split("T")[0];
+    const currentYear = new Date().getFullYear();
 
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250514",
-      max_tokens: 1000,
+      max_tokens: 2000,
       messages: [
         {
           role: "user",
@@ -44,25 +55,22 @@ export async function POST(request: Request) {
             },
             {
               type: "text",
-              text: `Extract event details from this image. Today is ${today}.
+              text: `Extract ALL event details from this image. Today is ${today}. The current year is ${currentYear}.
 
 Children in this household: ${childrenNames || "none specified"}
 
-Return ONLY valid JSON with these fields (omit any you can't determine):
-{
-  "title": "event title",
-  "date": "YYYY-MM-DD",
-  "start_time": "HH:MM",
-  "end_time": "HH:MM",
-  "location": "location",
-  "category": "one of: school, sports, medical, band, appointment, chore, homework, workout, parenting_discussion, travel, other",
-  "child_name": "matched child name if identifiable",
-  "notes": "any additional context from the image",
-  "confidence": 0.0 to 1.0
-}
+Return ONLY a JSON array (no markdown, no explanation) with objects containing:
+- "title": event title/name
+- "date": "YYYY-MM-DD" format (use ${currentYear} if year not shown)
+- "start_time": "HH:MM" in 24-hour format
+- "end_time": "HH:MM" in 24-hour format
+- "location": venue/location
+- "category": one of: school, sports, medical, band, appointment, other
+- "notes": any extra context (team names, opponent, type like game/training)
 
-If the image contains multiple events, return an array of event objects.
-Look for dates, times, locations, event names, team names, school names, etc.`,
+Example: [{"title":"Game vs Blue","date":"2026-04-12","start_time":"09:00","end_time":"09:55","location":"Tantasqua HS","category":"sports","notes":"HOME game"}]
+
+Extract EVERY event visible. Return the JSON array only, no other text.`,
             },
           ],
         },
@@ -90,7 +98,7 @@ Look for dates, times, locations, event names, team names, school names, etc.`,
       return NextResponse.json({ events });
     } catch {
       return NextResponse.json(
-        { error: "Could not extract event details from image" },
+        { error: `Could not parse Claude response as JSON. Raw: ${responseText.substring(0, 200)}` },
         { status: 500 }
       );
     }
@@ -98,7 +106,7 @@ Look for dates, times, locations, event names, team names, school names, etc.`,
     console.error("Screenshot parse error:", error);
     const errMsg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: `Failed to parse screenshot: ${errMsg}` },
+      { error: `API error: ${errMsg}` },
       { status: 500 }
     );
   }
