@@ -30,9 +30,10 @@ export default function SettingsPage() {
   const [calendarPopupOpen, setCalendarPopupOpen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState<"link" | "code" | null>(null);
   const [userId, setUserId] = useState("");
-  const [icsUrl, setIcsUrl] = useState("");
+  const [icsFeeds, setIcsFeeds] = useState<{ url: string; label: string }[]>([]);
   const [icsUrlInput, setIcsUrlInput] = useState("");
-  const [syncing, setSyncing] = useState(false);
+  const [icsLabelInput, setIcsLabelInput] = useState("");
+  const [syncing, setSyncing] = useState<string | null>(null); // URL being synced
   const [syncResult, setSyncResult] = useState("");
 
   const loadData = useCallback(async () => {
@@ -65,11 +66,10 @@ export default function SettingsPage() {
         .maybeSingle();
       setHousehold(householdData);
 
-      // Load saved ICS URL from localStorage
-      const savedIcs = localStorage.getItem(`ics_url_${membership.household_id}`);
-      if (savedIcs) {
-        setIcsUrl(savedIcs);
-        setIcsUrlInput(savedIcs);
+      // Load saved ICS feeds from localStorage
+      const savedFeeds = localStorage.getItem(`ics_feeds_${membership.household_id}`);
+      if (savedFeeds) {
+        try { setIcsFeeds(JSON.parse(savedFeeds)); } catch { /* ignore */ }
       }
 
       const { data: childrenData } = await supabase
@@ -87,21 +87,51 @@ export default function SettingsPage() {
     loadData();
   }, [loadData]);
 
-  async function handleSyncIcs() {
-    if (!icsUrlInput.trim() || !household || !userId) return;
-    setSyncing(true);
-    setSyncResult("");
+  function saveFeeds(feeds: { url: string; label: string }[]) {
+    if (!household) return;
+    setIcsFeeds(feeds);
+    localStorage.setItem(`ics_feeds_${household.id}`, JSON.stringify(feeds));
+  }
 
-    // Save URL
-    localStorage.setItem(`ics_url_${household.id}`, icsUrlInput.trim());
-    setIcsUrl(icsUrlInput.trim());
+  async function handleAddFeed() {
+    if (!icsUrlInput.trim() || !household || !userId) return;
+    const url = icsUrlInput.trim();
+
+    // Auto-detect label from URL
+    let label = icsLabelInput.trim();
+    if (!label) {
+      if (url.includes("ottosport")) label = "OttoSport";
+      else if (url.includes("mojo.sport")) label = "Mojo";
+      else if (url.includes("teamsnap")) label = "TeamSnap";
+      else label = "Calendar Feed";
+    }
+
+    // Avoid duplicates
+    if (icsFeeds.some((f) => f.url === url)) {
+      setSyncResult("This feed is already added.");
+      return;
+    }
+
+    const newFeeds = [...icsFeeds, { url, label }];
+    saveFeeds(newFeeds);
+    setIcsUrlInput("");
+    setIcsLabelInput("");
+
+    // Sync immediately
+    await handleSyncFeed(url);
+  }
+
+  async function handleSyncFeed(url: string) {
+    if (!household || !userId) return;
+    setSyncing(url);
+    setSyncResult("");
 
     try {
       const res = await fetch("/api/sync-ics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ics_url: icsUrlInput.trim(),
+          ics_url: url,
           household_id: household.id,
           user_id: userId,
         }),
@@ -115,8 +145,18 @@ export default function SettingsPage() {
     } catch (err) {
       setSyncResult(`Failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      setSyncing(false);
+      setSyncing(null);
     }
+  }
+
+  async function handleSyncAll() {
+    for (const feed of icsFeeds) {
+      await handleSyncFeed(feed.url);
+    }
+  }
+
+  function handleRemoveFeed(url: string) {
+    saveFeeds(icsFeeds.filter((f) => f.url !== url));
   }
 
   async function handleSignOut() {
@@ -247,47 +287,83 @@ export default function SettingsPage() {
 
         {/* ICS Calendar Subscriptions */}
         <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+          <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
               Calendar Feeds
             </h2>
+            {icsFeeds.length > 1 && (
+              <button
+                onClick={handleSyncAll}
+                disabled={!!syncing}
+                className="text-xs text-[var(--color-primary)] font-medium flex items-center gap-1"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Sync All
+              </button>
+            )}
           </div>
           <div className="p-4 space-y-3">
+            {/* Existing feeds */}
+            {icsFeeds.map((feed) => (
+              <div key={feed.url} className="flex items-center gap-2 bg-gray-50 rounded-lg p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{feed.label}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] truncate">{feed.url}</p>
+                </div>
+                <button
+                  onClick={() => handleSyncFeed(feed.url)}
+                  disabled={!!syncing}
+                  className="p-2 text-[var(--color-primary)] hover:bg-blue-50 rounded-lg shrink-0"
+                >
+                  {syncing === feed.url ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleRemoveFeed(feed.url)}
+                  className="p-2 text-red-400 hover:bg-red-50 rounded-lg shrink-0 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {/* Add new feed */}
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Paste an ICS calendar URL from OttoSport, TeamSnap, or any sports platform. Events sync automatically.
+              Add an ICS URL from OttoSport, Mojo, TeamSnap, or any platform.
             </p>
-            <div className="flex gap-2">
+            <div className="space-y-2">
               <input
                 type="url"
                 value={icsUrlInput}
                 onChange={(e) => setIcsUrlInput(e.target.value)}
                 placeholder="https://...calendar.ics"
-                className="flex-1 px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                className="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
               />
-              <button
-                onClick={handleSyncIcs}
-                disabled={syncing || !icsUrlInput.trim()}
-                className="px-4 py-2.5 bg-[var(--color-primary)] text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5 shrink-0"
-              >
-                {syncing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : icsUrl ? (
-                  <RefreshCw className="w-4 h-4" />
-                ) : (
-                  <Link className="w-4 h-4" />
-                )}
-                {syncing ? "Syncing" : icsUrl ? "Sync" : "Add"}
-              </button>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={icsLabelInput}
+                  onChange={(e) => setIcsLabelInput(e.target.value)}
+                  placeholder="Label (auto-detected)"
+                  className="flex-1 px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                />
+                <button
+                  onClick={handleAddFeed}
+                  disabled={!!syncing || !icsUrlInput.trim()}
+                  className="px-4 py-2.5 bg-[var(--color-primary)] text-white text-sm font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                >
+                  {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                  Add
+                </button>
+              </div>
             </div>
+
             {syncResult && (
-              <div className={`text-sm p-2.5 rounded-lg ${syncResult.startsWith("Error") || syncResult.startsWith("Failed") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+              <div className={`text-sm p-2.5 rounded-lg ${syncResult.startsWith("Error") || syncResult.startsWith("Failed") || syncResult.startsWith("This feed") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
                 {syncResult}
               </div>
-            )}
-            {icsUrl && !syncResult && (
-              <p className="text-xs text-green-600 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Feed connected
-              </p>
             )}
           </div>
         </section>
