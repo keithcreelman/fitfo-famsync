@@ -44,12 +44,13 @@ export default function OnboardingPage() {
       console.log("[onboarding] checkExisting - user:", user?.id);
       if (!user) { setCheckingExisting(false); return; }
 
-      const { data: membership, error: memErr } = await supabase
+      const { data: memberships, error: memErr } = await supabase
         .from("household_members")
         .select("household_id")
         .eq("user_id", user.id)
         .eq("invite_status", "accepted")
-        .maybeSingle();
+        .limit(1);
+      const membership = memberships?.[0] || null;
       console.log("[onboarding] checkExisting - membership:", membership, "error:", memErr);
 
       if (membership) {

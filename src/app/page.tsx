@@ -54,13 +54,14 @@ export default function HomePage() {
     debug += `profile: ${profileData ? profileData.display_name : "NULL"} err: ${profErr?.message || "none"}\n`;
     setProfile(profileData);
 
-    // Get household membership
-    const { data: membership, error: memErr } = await supabase
+    // Get household membership (use limit(1) in case of duplicates)
+    const { data: memberships, error: memErr } = await supabase
       .from("household_members")
       .select("household_id")
       .eq("user_id", user.id)
       .eq("invite_status", "accepted")
-      .maybeSingle();
+      .limit(1);
+    const membership = memberships?.[0] || null;
     debug += `membership: ${membership ? membership.household_id : "NULL"} err: ${memErr?.message || "none"}\n`;
 
     if (!membership) {
