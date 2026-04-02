@@ -294,15 +294,49 @@ function ImportReviewContent() {
     setCsvStep("review");
   }
 
+  // Get local timezone offset string like "-04:00" for EDT
+  function getTzOffset(): string {
+    const offset = new Date().getTimezoneOffset();
+    const sign = offset <= 0 ? "+" : "-";
+    const h = String(Math.floor(Math.abs(offset) / 60)).padStart(2, "0");
+    const m = String(Math.abs(offset) % 60).padStart(2, "0");
+    return `${sign}${h}:${m}`;
+  }
+
+  function toLocalDateTime(date: string, time?: string): string {
+    const tz = getTzOffset();
+    if (time) return `${date}T${time}:00${tz}`;
+    return `${date}T00:00:00${tz}`;
+  }
+
+  async function checkDuplicate(eventTitle: string, eventDate: string, eventStartTime?: string): Promise<boolean> {
+    const startDt = toLocalDateTime(eventDate, eventStartTime);
+    const { data } = await supabase
+      .from("events")
+      .select("id")
+      .eq("household_id", householdId)
+      .eq("title", eventTitle)
+      .eq("start_time", startDt)
+      .limit(1);
+    return (data && data.length > 0) || false;
+  }
+
   async function handleSaveAll() {
     if (!householdId) return;
     setSavingAll(true);
+    let savedCount = 0;
+    let skippedCount = 0;
     try {
       for (const event of events) {
-        const startDateTime = event.start_time
-          ? `${event.date}T${event.start_time}:00`
-          : `${event.date}T00:00:00`;
-        const endDateTime = event.end_time ? `${event.date}T${event.end_time}:00` : null;
+        // Check for duplicates
+        const isDup = await checkDuplicate(event.title || "", event.date || "", event.start_time);
+        if (isDup) {
+          skippedCount++;
+          continue;
+        }
+
+        const startDateTime = toLocalDateTime(event.date || "", event.start_time);
+        const endDateTime = event.end_time && event.date ? toLocalDateTime(event.date, event.end_time) : null;
 
         await supabase.from("events").insert({
           household_id: householdId,
@@ -316,6 +350,10 @@ function ImportReviewContent() {
           source_type: importType === "ics" ? "ics_import" : importType === "csv" ? "ics_import" : "screenshot_import",
           created_by: userId,
         });
+        savedCount++;
+      }
+      if (skippedCount > 0) {
+        setSaveError(`Saved ${savedCount}, skipped ${skippedCount} duplicate(s).`);
       }
       setSaved(true);
     } catch (error) {
@@ -331,10 +369,16 @@ function ImportReviewContent() {
     setSaving(true);
 
     try {
-      const startDateTime = startTime
-        ? `${date}T${startTime}:00`
-        : `${date}T00:00:00`;
-      const endDateTime = endTime ? `${date}T${endTime}:00` : null;
+      // Check for duplicate
+      const isDup = await checkDuplicate(title, date, startTime || undefined);
+      if (isDup) {
+        setSaveError("This event already exists in your calendar.");
+        setSaving(false);
+        return;
+      }
+
+      const startDateTime = toLocalDateTime(date, startTime || undefined);
+      const endDateTime = endTime ? toLocalDateTime(date, endTime) : null;
 
       await supabase.from("events").insert({
         household_id: householdId,
