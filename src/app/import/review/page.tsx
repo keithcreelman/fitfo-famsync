@@ -100,6 +100,7 @@ function ImportReviewContent() {
       if (importType === "screenshot") {
         const allFiles = [selectedFile, ...(additionalFiles || [])];
         const allEvents: ParsedEventData[] = [];
+        let lastError = "";
 
         for (const f of allFiles) {
           const formData = new FormData();
@@ -116,19 +117,19 @@ function ImportReviewContent() {
           try {
             data = JSON.parse(responseText);
           } catch {
-            setParseError(`Server returned non-JSON (status ${res.status}): ${responseText.substring(0, 200)}`);
+            lastError = `Server returned non-JSON (status ${res.status}): ${responseText.substring(0, 300)}`;
             continue;
           }
 
           if (!res.ok) {
-            setParseError(`Failed (${res.status}): ${data.error || responseText.substring(0, 200)}`);
+            lastError = `Failed (${res.status}): ${data.error || JSON.stringify(data).substring(0, 300)}`;
             continue;
           }
 
           if (data.events && data.events.length > 0) {
             allEvents.push(...data.events);
           } else {
-            setParseError(`API returned OK but no events. Response: ${JSON.stringify(data).substring(0, 200)}`);
+            lastError = `API returned OK but no events. Full response: ${JSON.stringify(data).substring(0, 300)}`;
           }
         }
 
@@ -136,8 +137,8 @@ function ImportReviewContent() {
           setEvents(allEvents);
           populateFromParsed(allEvents[0]);
           setEditIndex(0);
-        } else if (!parseError) {
-          setParseError("No events found in the uploaded image(s). Try a clearer screenshot.");
+        } else {
+          setParseError(lastError || "No events found in the uploaded image(s).");
         }
       } else if (importType === "ics") {
         // Read ICS file as text and parse client-side
