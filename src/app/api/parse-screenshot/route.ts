@@ -94,10 +94,11 @@ Look for dates, times, locations, event names, team names, school names, etc.`,
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Screenshot parse error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Failed to parse screenshot" },
+      { error: `Failed to parse screenshot: ${errMsg}` },
       { status: 500 }
     );
   }

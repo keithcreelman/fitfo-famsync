@@ -28,6 +28,7 @@ function ImportReviewContent() {
 
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
@@ -58,12 +59,13 @@ function ImportReviewContent() {
     if (!user) return;
     setUserId(user.id);
 
-    const { data: membership } = await supabase
+    const { data: memberships } = await supabase
       .from("household_members")
       .select("household_id")
       .eq("user_id", user.id)
       .eq("invite_status", "accepted")
-      .single();
+      .limit(1);
+    const membership = memberships?.[0] || null;
 
     if (!membership) return;
     setHouseholdId(membership.household_id);
@@ -89,26 +91,43 @@ function ImportReviewContent() {
     setNotes(parsed.notes || "");
   }
 
-  async function handleFileUpload(selectedFile: File) {
+  async function handleFileUpload(selectedFile: File, additionalFiles?: File[]) {
     setFile(selectedFile);
     setParsing(true);
+    setParseError("");
 
     try {
       if (importType === "screenshot") {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("children_names", children.map((c) => c.name).join(", "));
+        const allFiles = [selectedFile, ...(additionalFiles || [])];
+        const allEvents: ParsedEventData[] = [];
 
-        const res = await fetch("/api/parse-screenshot", {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
+        for (const f of allFiles) {
+          const formData = new FormData();
+          formData.append("file", f);
+          formData.append("children_names", children.map((c) => c.name).join(", "));
 
-        if (data.events && data.events.length > 0) {
-          setEvents(data.events);
-          populateFromParsed(data.events[0]);
+          const res = await fetch("/api/parse-screenshot", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            setParseError(`Failed to parse ${f.name}: ${data.error || "unknown error"}`);
+            continue;
+          }
+
+          if (data.events && data.events.length > 0) {
+            allEvents.push(...data.events);
+          }
+        }
+
+        if (allEvents.length > 0) {
+          setEvents(allEvents);
+          populateFromParsed(allEvents[0]);
           setEditIndex(0);
+        } else if (!parseError) {
+          setParseError("No events found in the uploaded image(s). Try a clearer screenshot.");
         }
       } else if (importType === "ics") {
         // Read ICS file as text and parse client-side
@@ -383,10 +402,13 @@ function ImportReviewContent() {
                     ? "image/*"
                     : ".ics,text/calendar"
               }
-              capture={importType === "screenshot" ? "environment" : undefined}
+              multiple={importType === "screenshot"}
               onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileUpload(f);
+                const files = e.target.files;
+                if (files && files.length > 0) {
+                  const additional = Array.from(files).slice(1);
+                  handleFileUpload(files[0], additional);
+                }
               }}
               className="hidden"
             />
@@ -398,6 +420,18 @@ function ImportReviewContent() {
             <p className="text-sm text-[var(--color-text-secondary)] mt-1">
               This may take a few seconds.
             </p>
+          </div>
+        ) : parseError && events.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+              <p className="text-red-700 text-sm">{parseError}</p>
+            </div>
+            <button
+              onClick={() => { setFile(null); setParseError(""); }}
+              className="py-3 px-6 bg-[var(--color-primary)] text-white font-semibold rounded-xl"
+            >
+              Try Again
+            </button>
           </div>
         ) : importType === "csv" && csvStep === "map" && csvHeaders.length > 0 ? (
           /* CSV Column Mapping */
