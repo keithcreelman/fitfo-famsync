@@ -32,6 +32,7 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
   const [expanded, setExpanded] = useState(false);
   const [viewItem, setViewItem] = useState<MediaItem | null>(null);
   const [mediaCount, setMediaCount] = useState(0);
+  const [uploadError, setUploadError] = useState("");
 
   // Load count on mount
   useEffect(() => {
@@ -68,33 +69,45 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
   async function handleUpload(files: FileList) {
     if (!userId || files.length === 0) return;
     setUploading(true);
+    setUploadError("");
 
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop();
-      const path = `${eventId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    try {
+      for (const file of Array.from(files)) {
+        const ext = file.name.split(".").pop();
+        const path = `${eventId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
-      const { error: uploadErr } = await supabase.storage
-        .from("event-media")
-        .upload(path, file);
+        const { error: uploadErr } = await supabase.storage
+          .from("event-media")
+          .upload(path, file);
 
-      if (uploadErr) {
-        console.error("Upload error:", uploadErr);
-        continue;
+        if (uploadErr) {
+          setUploadError(`Upload failed: ${uploadErr.message}`);
+          continue;
+        }
+
+        const { error: dbErr } = await supabase.from("event_media").insert({
+          event_id: eventId,
+          uploaded_by: userId,
+          file_path: path,
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+        });
+
+        if (dbErr) {
+          setUploadError(`Save failed: ${dbErr.message}`);
+          continue;
+        }
+
+        setMediaCount((c) => c + 1);
       }
 
-      await supabase.from("event_media").insert({
-        event_id: eventId,
-        uploaded_by: userId,
-        file_path: path,
-        file_name: file.name,
-        file_type: file.type,
-        file_size: file.size,
-      });
+      await loadMedia();
+    } catch (err) {
+      setUploadError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setUploading(false);
     }
-
-    setMediaCount((c) => c + files.length);
-    await loadMedia();
-    setUploading(false);
   }
 
   async function handleDelete(item: MediaItem) {
@@ -165,6 +178,9 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
         <div className="flex items-center gap-1 mt-1 text-xs text-[var(--color-primary)]">
           <Loader2 className="w-3 h-3 animate-spin" /> Uploading...
         </div>
+      )}
+      {uploadError && (
+        <p className="text-[11px] text-red-500 mt-1">{uploadError}</p>
       )}
 
       {/* Gallery grid */}
