@@ -90,11 +90,11 @@ function icsDateToISO(icsDate: string): string {
 }
 
 // Auto-detect sport category from title or feed URL
-function detectSportCategory(title: string, feedUrl: string): string {
-  const combined = `${title} ${feedUrl}`.toLowerCase();
+function detectSportCategory(title: string, feedUrl: string, feedLabel: string): string {
+  const combined = `${title} ${feedUrl} ${feedLabel}`.toLowerCase();
   if (combined.includes("lacrosse") || combined.includes("lax")) return "lacrosse";
-  if (combined.includes("soccer") || combined.includes("futbol")) return "soccer";
-  if (combined.includes("basketball") || combined.includes("hoops")) return "basketball";
+  if (combined.includes("soccer") || combined.includes("futbol") || combined.includes("necon")) return "soccer";
+  if (combined.includes("basketball") || combined.includes("hoops") || combined.includes("breaker")) return "basketball";
   if (combined.includes("flag football") || combined.includes("flag_football")) return "flag_football";
   return "sports";
 }
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
       const endISO = event.dtend ? icsDateToISO(event.dtend) : null;
       const cleanedTitle = cleanTitle(event.summary);
       const cleanedLocation = event.location ? cleanLocation(event.location) : null;
-      const sportCategory = detectSportCategory(event.summary + " " + (feed_label || ""), ics_url);
+      const sportCategory = detectSportCategory(event.summary, ics_url, feed_label || "");
 
       // Find ALL existing events with this UID (catches dupes)
       const { data: matches } = await supabase
@@ -168,17 +168,19 @@ export async function POST(request: Request) {
           existingEvent.end_time !== endISO ||
           existingEvent.location !== cleanedLocation;
 
+        // Always update category + title (in case feed label changed or title was messy before)
+        await supabase
+          .from("events")
+          .update({
+            title: cleanedTitle,
+            start_time: startISO,
+            end_time: endISO,
+            location: cleanedLocation,
+            category: sportCategory,
+          })
+          .eq("id", existingEvent.id);
+
         if (changed) {
-          await supabase
-            .from("events")
-            .update({
-              title: cleanedTitle,
-              start_time: startISO,
-              end_time: endISO,
-              location: cleanedLocation,
-              category: sportCategory,
-            })
-            .eq("id", existingEvent.id);
           updated++;
         } else {
           unchanged++;
