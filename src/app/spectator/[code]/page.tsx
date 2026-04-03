@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase-browser";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Navigation } from "lucide-react";
 import { CATEGORY_COLORS, isGameEvent } from "@/lib/types";
+import EventMedia from "@/components/EventMedia";
 
 interface SpectatorEvent {
   id: string;
@@ -160,6 +161,7 @@ export default function SpectatorPage() {
                           <Navigation className="w-2.5 h-2.5 shrink-0" />
                         </a>
                       )}
+                      <EventMedia eventId={ev.id} readOnly />
                     </div>
                   </div>
                 );

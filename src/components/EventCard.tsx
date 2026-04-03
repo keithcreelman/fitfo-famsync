@@ -8,6 +8,7 @@ import {
   MessageSquare, Car,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+import EventMedia from "@/components/EventMedia";
 import {
   type CalendarEvent, type EventCategory, type Child,
   CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent, getArrivalBuffer,
@@ -526,6 +527,8 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                   <MessageSquare className="w-3 h-3" />
                   {commentCount > 0 ? commentCount : ""}
                 </button>
+                <span className="text-gray-200">|</span>
+                <EventMedia eventId={event.id} userId={userId} />
               </div>
             )}
 
