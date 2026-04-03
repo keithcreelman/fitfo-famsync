@@ -4,8 +4,19 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, MapPin, Clock, Navigation, Car } from "lucide-react";
-import { type CalendarEvent, CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent, PARENT_HOMES, estimateDriveFromHome } from "@/lib/types";
+import { ChevronLeft, ChevronRight, MapPin, Clock, Navigation } from "lucide-react";
+import { CATEGORY_COLORS, isGameEvent } from "@/lib/types";
+
+interface SpectatorEvent {
+  id: string;
+  title: string;
+  start_time: string;
+  end_time: string | null;
+  location: string | null;
+  category: string;
+  all_day: boolean;
+  children: { name: string; color: string | null }[];
+}
 
 export default function SpectatorPage() {
   const params = useParams();
@@ -13,14 +24,13 @@ export default function SpectatorPage() {
   const supabase = createClient();
 
   const [householdName, setHouseholdName] = useState("");
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<SpectatorEvent[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadData = useCallback(async () => {
-    // Look up household by invite code
     const { data: household } = await supabase
       .from("households")
       .select("id, name")
@@ -28,131 +38,81 @@ export default function SpectatorPage() {
       .maybeSingle();
 
     if (!household) {
-      setError("Invalid link. Check with the family for the correct URL.");
+      setError("Invalid link.");
       setLoading(false);
       return;
     }
 
     setHouseholdName(household.name);
 
-    // Get public events only
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
 
     const { data: eventsData } = await supabase
       .from("events")
-      .select("*, event_children(children(id, name, color))")
+      .select("id, title, start_time, end_time, location, category, all_day, event_children(children(name, color))")
       .eq("household_id", household.id)
       .eq("visibility", "public")
       .gte("start_time", monthStart.toISOString())
       .lte("start_time", monthEnd.toISOString())
       .order("start_time");
 
-    const processed = (eventsData || []).map((e: any) => ({
+    setEvents((eventsData || []).map((e: any) => ({
       ...e,
       children: e.event_children?.map((ec: any) => ec.children).filter(Boolean) || [],
-    }));
-
-    setEvents(processed);
+    })));
     setLoading(false);
   }, [supabase, code, currentMonth]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center px-6"><p className="text-red-600 font-semibold">{error}</p></div>;
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-red-600">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calendarDays = eachDayOfInterval({
-    start: startOfWeek(monthStart),
-    end: endOfWeek(monthEnd),
+  const calendarDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(currentMonth)), end: endOfWeek(endOfMonth(currentMonth)) });
+  const selectedEvents = events.filter((e) => isSameDay(new Date(e.start_time), selectedDate)).sort((a, b) => {
+    if (isGameEvent(a.title) !== isGameEvent(b.title)) return isGameEvent(a.title) ? -1 : 1;
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
   });
 
-  const selectedEvents = events
-    .filter((e) => isSameDay(new Date(e.start_time), selectedDate))
-    .sort((a, b) => {
-      const aGame = isGameEvent(a.title) ? 0 : 1;
-      const bGame = isGameEvent(b.title) ? 0 : 1;
-      if (aGame !== bGame) return aGame - bGame;
-      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
-    });
-
-  function getEventsForDay(day: Date) {
-    return events.filter((e) => isSameDay(new Date(e.start_time), day));
-  }
-
   return (
-    <div className="min-h-screen pb-8 bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-lg mx-auto">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Spectator View</p>
-          <h1 className="text-xl font-bold">{householdName}</h1>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b px-4 py-3">
+        <div className="max-w-md mx-auto">
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest">Family Calendar</p>
+          <h1 className="text-lg font-bold">{householdName}</h1>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto">
+      <main className="max-w-md mx-auto">
         {/* Month nav */}
-        <div className="bg-white px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <h2 className="text-lg font-bold">{format(currentMonth, "MMMM yyyy")}</h2>
-          <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
+        <div className="bg-white flex items-center justify-between px-4 py-2">
+          <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><ChevronLeft className="w-5 h-5" /></button>
+          <span className="font-bold">{format(currentMonth, "MMMM yyyy")}</span>
+          <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><ChevronRight className="w-5 h-5" /></button>
         </div>
 
-        {/* Calendar grid */}
-        <div className="bg-white px-2 py-3">
-          <div className="grid grid-cols-7 mb-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="text-center text-xs font-medium text-gray-400">{d}</div>
+        {/* Mini calendar */}
+        <div className="bg-white px-2 py-2">
+          <div className="grid grid-cols-7 mb-1">
+            {["S","M","T","W","T","F","S"].map((d, i) => (
+              <div key={i} className="text-center text-[10px] font-medium text-gray-400">{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-y-1">
+          <div className="grid grid-cols-7 gap-y-0.5">
             {calendarDays.map((day) => {
-              const dayEvents = getEventsForDay(day);
+              const dayEvents = events.filter((e) => isSameDay(new Date(e.start_time), day));
               const isSelected = isSameDay(day, selectedDate);
-              const isCurrentMonth = isSameMonth(day, currentMonth);
               return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => setSelectedDate(day)}
-                  className={`flex flex-col items-center py-2 rounded-xl ${
-                    isSelected ? "bg-blue-500 text-white" : isCurrentMonth ? "" : "opacity-30"
-                  }`}
-                >
-                  <span className="text-sm font-medium">{format(day, "d")}</span>
+                <button key={day.toISOString()} onClick={() => setSelectedDate(day)}
+                  className={`flex flex-col items-center py-1.5 rounded-lg ${isSelected ? "bg-blue-500 text-white" : !isSameMonth(day, currentMonth) ? "opacity-20" : ""}`}>
+                  <span className="text-xs">{format(day, "d")}</span>
                   {dayEvents.length > 0 && (
-                    <div className="flex gap-0.5 mt-1">
-                      {dayEvents.slice(0, 3).map((ev) => {
-                        const dotColor = ev.children?.[0]?.color || CATEGORY_COLORS[ev.category] || "#6b7280";
-                        return (
-                          <div
-                            key={ev.id}
-                            className={`rounded-full ${isGameEvent(ev.title) ? "w-2 h-2" : "w-1.5 h-1.5"}`}
-                            style={{ backgroundColor: isSelected ? "white" : dotColor }}
-                          />
-                        );
-                      })}
+                    <div className="flex gap-px mt-0.5">
+                      {dayEvents.slice(0, 3).map((ev) => (
+                        <div key={ev.id} className="w-1 h-1 rounded-full" style={{ backgroundColor: isSelected ? "white" : ev.children[0]?.color || "#6b7280" }} />
+                      ))}
                     </div>
                   )}
                 </button>
@@ -161,68 +121,44 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* Events */}
+        {/* Events list */}
         <div className="px-4 py-3">
-          <h3 className="text-sm font-semibold text-gray-500 mb-3">
-            {format(selectedDate, "EEEE, MMMM d")}
-          </h3>
+          <p className="text-xs font-semibold text-gray-400 mb-2">{format(selectedDate, "EEEE, MMMM d")}</p>
           {selectedEvents.length === 0 ? (
-            <p className="text-center py-8 text-gray-400">No public events this day.</p>
+            <p className="text-center py-6 text-sm text-gray-400">Nothing scheduled</p>
           ) : (
             <div className="space-y-2">
-              {selectedEvents.map((event) => {
-                const startDate = new Date(event.start_time);
-                const endDate = event.end_time ? new Date(event.end_time) : null;
-                const childColor = event.children?.[0]?.color || CATEGORY_COLORS[event.category];
-                const isGame = isGameEvent(event.title);
-
+              {selectedEvents.map((ev) => {
+                const s = new Date(ev.start_time);
+                const e = ev.end_time ? new Date(ev.end_time) : null;
+                const color = ev.children[0]?.color || CATEGORY_COLORS[ev.category as keyof typeof CATEGORY_COLORS] || "#6b7280";
+                const game = isGameEvent(ev.title);
                 return (
-                  <div
-                    key={event.id}
-                    className={`rounded-xl p-4 flex gap-3 ${
-                      isGame ? "bg-white border-2 shadow-sm" : "bg-white border border-gray-200"
-                    }`}
-                    style={isGame ? { borderColor: childColor } : {}}
-                  >
-                    <div className={`${isGame ? "w-2" : "w-1.5"} rounded-full shrink-0`} style={{ backgroundColor: childColor }} />
+                  <div key={ev.id} className={`bg-white rounded-lg p-3 flex gap-2.5 ${game ? "border-l-4" : "border-l-2"}`} style={{ borderLeftColor: color }}>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className={`${isGame ? "font-bold" : "font-semibold"} truncate`}>{event.title}</h4>
-                        {isGame && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">GAME</span>
-                        )}
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: `${childColor}15`, color: childColor }}>
-                          {CATEGORY_LABELS[event.category]}
-                        </span>
-                      </div>
-                      {event.children && event.children.length > 0 && (
-                        <div className="flex items-center gap-1 mt-1">
-                          {event.children.map((c) => (
-                            <span key={c.id} className="text-sm font-medium" style={{ color: c.color || "#3b82f6" }}>
-                              {c.name}
-                            </span>
-                          ))}
-                        </div>
+                      {/* WHO */}
+                      {ev.children.length > 0 && (
+                        <p className="text-xs font-semibold" style={{ color }}>{ev.children.map((c) => c.name).join(", ")}</p>
                       )}
-                      <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
-                        <Clock className="w-3.5 h-3.5" />
-                        {event.all_day ? "All day" : endDate
-                          ? `${format(startDate, "h:mm a")} - ${format(endDate, "h:mm a")}`
-                          : format(startDate, "h:mm a")}
-                      </div>
-                      {event.location && (
-                        <div className="flex items-center gap-1 mt-1 text-sm">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(event.location)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline truncate flex items-center gap-1"
-                          >
-                            <span className="truncate">{event.location}</span>
-                            <Navigation className="w-3 h-3 shrink-0" />
-                          </a>
-                        </div>
+                      {/* WHAT */}
+                      <p className={`${game ? "font-bold" : "font-medium"} text-sm`}>
+                        {ev.title}
+                        {game && <span className="ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700">GAME</span>}
+                      </p>
+                      {/* WHEN */}
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        {ev.all_day ? "All day" : e ? `${format(s, "h:mm a")} - ${format(e, "h:mm a")}` : format(s, "h:mm a")}
+                      </p>
+                      {/* WHERE */}
+                      {ev.location && (
+                        <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ev.location)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-500 flex items-center gap-1 mt-0.5 truncate">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{ev.location}</span>
+                          <Navigation className="w-2.5 h-2.5 shrink-0" />
+                        </a>
                       )}
                     </div>
                   </div>
@@ -233,9 +169,7 @@ export default function SpectatorPage() {
         </div>
       </main>
 
-      <footer className="text-center py-6 text-xs text-gray-400">
-        Powered by FamSync
-      </footer>
+      <footer className="text-center py-4 text-[10px] text-gray-300">Powered by FamSync</footer>
     </div>
   );
 }
