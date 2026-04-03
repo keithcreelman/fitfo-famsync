@@ -99,7 +99,21 @@ export default function HomePage() {
         };
       }).filter(Boolean) || [],
     }));
-    setUpcomingEvents(eventsWithChildren);
+
+    // Filter out events where user marked "can't go"
+    const eventIds = eventsWithChildren.map((e: any) => e.id);
+    const { data: myRsvps } = eventIds.length > 0
+      ? await supabase
+          .from("event_rsvps")
+          .select("event_id, status")
+          .eq("user_id", user.id)
+          .eq("status", "not_going")
+          .in("event_id", eventIds)
+      : { data: [] };
+    const notGoingIds = new Set((myRsvps || []).map((r: any) => r.event_id));
+
+    const filtered = eventsWithChildren.filter((e: any) => !notGoingIds.has(e.id));
+    setUpcomingEvents(filtered);
 
     setLoading(false);
   }, [supabase, router]);

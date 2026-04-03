@@ -78,26 +78,28 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
         const ext = file.name.split(".").pop();
         const path = `${eventId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
-        const { error: uploadErr } = await supabase.storage
+        // Step 1: Upload file to storage
+        const { data: uploadData, error: uploadErr } = await supabase.storage
           .from("event-media")
-          .upload(path, file);
+          .upload(path, file, { upsert: true });
 
         if (uploadErr) {
-          setUploadError(`Upload failed: ${uploadErr.message}`);
+          setUploadError(`Storage upload failed: ${uploadErr.message} (bucket: event-media, path: ${path})`);
           continue;
         }
 
+        // Step 2: Save record to database
         const { error: dbErr } = await supabase.from("event_media").insert({
           event_id: eventId,
           uploaded_by: userId,
-          file_path: path,
+          file_path: uploadData?.path || path,
           file_name: file.name,
-          file_type: file.type,
+          file_type: file.type || "image/jpeg",
           file_size: file.size,
         });
 
         if (dbErr) {
-          setUploadError(`Save failed: ${dbErr.message}`);
+          setUploadError(`DB save failed: ${dbErr.message}`);
           continue;
         }
 
