@@ -429,8 +429,13 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
             {/* RESPONSIBLE PARENT + DEPART BY */}
             {(() => {
               const childNames = event.children?.map((c) => c.nickname || c.name) || [];
-              const responsible = getResponsibleParent(startDate, event.title, childNames, event.category);
+              // Check for manual override stored in description
+              const overrideMatch = event.description?.match(/assigned_parent:(dad|mom)/);
+              const defaultParent = getResponsibleParent(startDate, event.title, childNames, event.category);
+              const responsible = overrideMatch ? overrideMatch[1] as "dad" | "mom" : defaultParent;
+              const isOverridden = overrideMatch && overrideMatch[1] !== defaultParent;
               const parentName = getCustodyName(responsible);
+              const otherParent = responsible === "dad" ? "mom" : "dad";
               const parentHome = PARENT_HOMES[responsible];
               const driveMin = event.location ? estimateDriveFromHome(parentHome.address, event.location) : null;
               const arriveEarly = isGame ? 40 : 10;
@@ -440,11 +445,31 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
 
               return (
                 <div className="flex items-center gap-2 mt-1.5 text-xs flex-wrap">
-                  <span className={`font-semibold px-2 py-0.5 rounded-full ${
-                    responsible === "dad" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-                  }`}>
+                  <button
+                    onClick={async () => {
+                      if (!onUpdate) return;
+                      // Toggle to the other parent
+                      const newParent = otherParent;
+                      const currentDesc = event.description || "";
+                      const cleanDesc = currentDesc.replace(/\s*assigned_parent:(dad|mom)/, "");
+                      const newDesc = newParent === defaultParent
+                        ? cleanDesc // switching back to default, remove override
+                        : `${cleanDesc} assigned_parent:${newParent}`;
+                      await onUpdate(event.id, { description: newDesc.trim() });
+                    }}
+                    className={`font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors ${
+                      responsible === "dad" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                    }`}
+                    title="Tap to switch parent"
+                  >
                     {parentName}
-                  </span>
+                    <svg className="w-2.5 h-2.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                  </button>
+                  {isOverridden && (
+                    <span className="text-[10px] text-amber-500 font-medium">swapped</span>
+                  )}
                   {departBy && (
                     <span className="text-[var(--color-text-secondary)] flex items-center gap-1">
                       <Car className="w-3 h-3" />
