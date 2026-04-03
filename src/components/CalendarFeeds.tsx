@@ -219,20 +219,20 @@ export default function CalendarFeeds({
               placeholder="https://...calendar.ics"
               className="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
             />
+            <input
+              type="text"
+              value={labelInput}
+              onChange={(e) => setLabelInput(e.target.value)}
+              placeholder="Label (e.g. Parker Lacrosse)"
+              className="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            />
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={labelInput}
-                onChange={(e) => setLabelInput(e.target.value)}
-                placeholder="Label (e.g. Parker Lacrosse)"
-                className="flex-1 px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-              />
               <select
                 value={childId}
                 onChange={(e) => setChildId(e.target.value)}
-                className="px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                className="flex-1 px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
               >
-                <option value="">Child</option>
+                <option value="">Assign to child</option>
                 {children.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nickname || c.name}
@@ -249,7 +249,7 @@ export default function CalendarFeeds({
                 ) : (
                   <Link className="w-4 h-4" />
                 )}
-                Add
+                Add Feed
               </button>
             </div>
           </div>
