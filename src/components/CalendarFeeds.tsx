@@ -214,7 +214,7 @@ export default function CalendarFeeds({
               Add an ICS URL from OttoSport, Mojo, TeamSnap, or any platform.
             </p>
             <input
-              type="url"
+              type="text"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder="https://...calendar.ics"
