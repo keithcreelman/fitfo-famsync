@@ -141,9 +141,10 @@ export async function POST(request: Request) {
       const sportCategory = detectSportCategory(event.summary, ics_url, feed_label || "");
 
       // Find ALL existing events with this UID (catches dupes)
+      // Never select assigned_parent — we don't touch it during resync
       const { data: matches } = await supabase
         .from("events")
-        .select("id, title, start_time, end_time, location")
+        .select("id, title, start_time, end_time, location, category")
         .eq("household_id", household_id)
         .eq("description", uidDesc);
 

@@ -74,10 +74,11 @@ function detectConflicts(events: CalendarEvent[], skippedEventIds: Set<string>):
       if (aChildIds.size === 0 || bChildIds.size === 0) continue;
 
       // Only show conflict if the SAME parent is responsible for both events
+      // Check assigned_parent override first, then fall back to custody schedule
       const aChildNames = a.children?.map((c) => c.nickname || c.name) || [];
       const bChildNames = b.children?.map((c) => c.nickname || c.name) || [];
-      const aParent = getResponsibleParent(new Date(a.start_time), a.title, aChildNames, a.category);
-      const bParent = getResponsibleParent(new Date(b.start_time), b.title, bChildNames, b.category);
+      const aParent = a.assigned_parent || getResponsibleParent(new Date(a.start_time), a.title, aChildNames, a.category);
+      const bParent = b.assigned_parent || getResponsibleParent(new Date(b.start_time), b.title, bChildNames, b.category);
       if (aParent !== bParent) continue; // Different parents handle these — no conflict
 
       const aEnd = a.end_time

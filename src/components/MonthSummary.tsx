@@ -53,8 +53,8 @@ function getDayIssues(events: CalendarEvent[], month: Date): DayIssue[] {
       // Only flag if same parent is responsible
       const aNames = a.children?.map((c) => c.nickname || c.name) || [];
       const bNames = b.children?.map((c) => c.nickname || c.name) || [];
-      const aParent = getResponsibleParent(new Date(a.start_time), a.title, aNames, a.category);
-      const bParent = getResponsibleParent(new Date(b.start_time), b.title, bNames, b.category);
+      const aParent = a.assigned_parent || getResponsibleParent(new Date(a.start_time), a.title, aNames, a.category);
+      const bParent = b.assigned_parent || getResponsibleParent(new Date(b.start_time), b.title, bNames, b.category);
       if (aParent !== bParent) continue;
 
       const aEnd = a.end_time ? new Date(a.end_time) : new Date(new Date(a.start_time).getTime() + 3600000);
