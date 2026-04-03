@@ -126,46 +126,42 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // Get existing events from this source
-    const { data: existing } = await supabase
-      .from("events")
-      .select("id, title, start_time, end_time, location, description")
-      .eq("household_id", household_id)
-      .eq("source_type", "ics_import")
-      .in("description", parsed.map((e) => `ics_uid:${e.uid}`));
-
-    const existingByUid = new Map(
-      (existing || []).map((e) => {
-        const uidMatch = e.description?.match(/ics_uid:(.+)/);
-        return [uidMatch?.[1] || "", e];
-      })
-    );
-
-    // Get existing child links for these events
-    const existingEventIds = (existing || []).map((e) => e.id);
-    const { data: existingChildLinks } = existingEventIds.length > 0
-      ? await supabase
-          .from("event_children")
-          .select("event_id, child_id")
-          .in("event_id", existingEventIds)
-      : { data: [] };
-    const eventHasChild = new Set((existingChildLinks || []).map((l) => l.event_id));
-
     let added = 0;
     let updated = 0;
     let unchanged = 0;
     let childTagged = 0;
+    let dupesCleaned = 0;
 
     for (const event of parsed) {
+      const uidDesc = `ics_uid:${event.uid}`;
       const startISO = icsDateToISO(event.dtstart);
       const endISO = event.dtend ? icsDateToISO(event.dtend) : null;
       const cleanedTitle = cleanTitle(event.summary);
       const cleanedLocation = event.location ? cleanLocation(event.location) : null;
       const sportCategory = detectSportCategory(event.summary + " " + (feed_label || ""), ics_url);
-      const existingEvent = existingByUid.get(event.uid);
+
+      // Find ALL existing events with this UID (catches dupes)
+      const { data: matches } = await supabase
+        .from("events")
+        .select("id, title, start_time, end_time, location")
+        .eq("household_id", household_id)
+        .eq("description", uidDesc);
+
+      if (matches && matches.length > 1) {
+        // Clean up duplicates — keep the first, delete the rest
+        const dupeIds = matches.slice(1).map((m) => m.id);
+        for (const dupeId of dupeIds) {
+          await supabase.from("event_children").delete().eq("event_id", dupeId);
+          await supabase.from("event_rsvps").delete().eq("event_id", dupeId);
+          await supabase.from("events").delete().eq("id", dupeId);
+          dupesCleaned++;
+        }
+      }
+
+      const existingEvent = matches?.[0] || null;
 
       if (existingEvent) {
-        // Check if anything changed (compare against cleaned title)
+        // Check if anything changed
         const changed =
           existingEvent.title !== cleanedTitle ||
           existingEvent.start_time !== startISO ||
@@ -180,6 +176,7 @@ export async function POST(request: Request) {
               start_time: startISO,
               end_time: endISO,
               location: cleanedLocation,
+              category: sportCategory,
             })
             .eq("id", existingEvent.id);
           updated++;
@@ -187,16 +184,25 @@ export async function POST(request: Request) {
           unchanged++;
         }
 
-        // Tag child on existing events that don't have one yet
-        if (child_id && !eventHasChild.has(existingEvent.id)) {
-          await supabase.from("event_children").insert({
-            event_id: existingEvent.id,
-            child_id,
-          });
-          childTagged++;
+        // Tag child if not already tagged
+        if (child_id) {
+          const { data: childLink } = await supabase
+            .from("event_children")
+            .select("event_id")
+            .eq("event_id", existingEvent.id)
+            .eq("child_id", child_id)
+            .maybeSingle();
+
+          if (!childLink) {
+            await supabase.from("event_children").insert({
+              event_id: existingEvent.id,
+              child_id,
+            });
+            childTagged++;
+          }
         }
       } else {
-        // New event
+        // New event — insert
         const { data: newEvent } = await supabase.from("events").insert({
           household_id,
           title: cleanedTitle,
@@ -206,7 +212,7 @@ export async function POST(request: Request) {
           category: sportCategory,
           all_day: false,
           source_type: "ics_import",
-          description: `ics_uid:${event.uid}`,
+          description: uidDesc,
           created_by: user_id,
         }).select("id").single();
 
@@ -226,6 +232,7 @@ export async function POST(request: Request) {
       updated,
       unchanged,
       childTagged,
+      dupesCleaned,
     });
   } catch (error: unknown) {
     console.error("ICS sync error:", error);
