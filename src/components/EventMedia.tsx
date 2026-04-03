@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { Camera, Download, Trash2, X, Loader2, Image, Film } from "lucide-react";
 
@@ -24,8 +24,6 @@ interface MediaItem {
 
 export default function EventMedia({ eventId, userId, readOnly }: EventMediaProps) {
   const supabase = createClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -67,7 +65,11 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
   }
 
   async function handleUpload(files: FileList) {
-    if (!userId || files.length === 0) return;
+    if (files.length === 0) return;
+    if (!userId) {
+      setUploadError("Not logged in — can't upload");
+      return;
+    }
     setUploading(true);
     setUploadError("");
 
@@ -139,7 +141,7 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
 
   return (
     <>
-      {/* Trigger button */}
+      {/* Trigger buttons */}
       <div className="flex items-center gap-2">
         <button
           onClick={toggleGallery}
@@ -153,24 +155,23 @@ export default function EventMedia({ eventId, userId, readOnly }: EventMediaProp
           {mediaCount > 0 ? `${mediaCount} photo${mediaCount > 1 ? "s" : ""}` : "Photos"}
         </button>
         {!readOnly && userId && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-xs text-gray-400 hover:text-[var(--color-primary)] transition-colors"
-          >
+          <label className="text-xs text-gray-400 hover:text-[var(--color-primary)] transition-colors cursor-pointer">
             + Add
-          </button>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleUpload(e.target.files);
+                  setExpanded(true);
+                }
+                e.target.value = "";
+              }}
+            />
+          </label>
         )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) handleUpload(e.target.files);
-            e.target.value = "";
-          }}
-        />
       </div>
 
       {/* Uploading indicator */}
