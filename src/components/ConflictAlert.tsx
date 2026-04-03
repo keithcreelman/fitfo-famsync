@@ -64,12 +64,15 @@ function detectConflicts(events: CalendarEvent[], skippedEventIds: Set<string>):
       const a = sorted[i];
       const b = sorted[j];
 
-      // Skip if same child
+      // Skip if same child or any child overlap — a child can't be in 2 places,
+      // that's not a logistics conflict, it's just a scheduling issue in the source
       const aChildIds = new Set(a.children?.map((c) => c.id) || []);
       const bChildIds = new Set(b.children?.map((c) => c.id) || []);
-      const sameChild = [...aChildIds].some((id) => bChildIds.has(id));
-      if (sameChild) continue;
+      const hasChildOverlap = [...aChildIds].some((id) => bChildIds.has(id));
+      if (hasChildOverlap) continue;
       if (aChildIds.size === 0 && bChildIds.size === 0) continue;
+      // Skip if either event has no children assigned
+      if (aChildIds.size === 0 || bChildIds.size === 0) continue;
 
       const aEnd = a.end_time
         ? new Date(a.end_time)
@@ -104,7 +107,19 @@ function detectConflicts(events: CalendarEvent[], skippedEventIds: Set<string>):
     }
   }
 
-  return conflicts;
+  // Deduplicate: for each pair of children, only keep the tightest conflict
+  const seen = new Map<string, Conflict>();
+  for (const c of conflicts) {
+    const aIds = (c.eventA.children?.map((ch) => ch.id) || []).sort().join(",");
+    const bIds = (c.eventB.children?.map((ch) => ch.id) || []).sort().join(",");
+    const key = [aIds, bIds].sort().join("|");
+    const existing = seen.get(key);
+    if (!existing || c.arrivalMinutesLate > existing.arrivalMinutesLate) {
+      seen.set(key, c);
+    }
+  }
+
+  return Array.from(seen.values());
 }
 
 export default function ConflictAlert({ events, userId }: ConflictAlertProps) {
