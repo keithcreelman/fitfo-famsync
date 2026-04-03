@@ -184,6 +184,7 @@ export interface CalendarEvent {
   requires_discussion: boolean;
   created_by: string;
   created_at: string;
+  assigned_parent: "dad" | "mom" | null;
   children?: Child[];
 }
 

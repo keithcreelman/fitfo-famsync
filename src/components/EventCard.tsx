@@ -429,15 +429,19 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
             {/* RESPONSIBLE PARENT + DEPART BY */}
             {(() => {
               const childNames = event.children?.map((c) => c.nickname || c.name) || [];
-              // Check for manual override stored in description
-              const overrideMatch = event.description?.match(/assigned_parent:(dad|mom)/);
               const defaultParent = getResponsibleParent(startDate, event.title, childNames, event.category);
-              const responsible = overrideMatch ? overrideMatch[1] as "dad" | "mom" : defaultParent;
-              const isOverridden = overrideMatch && overrideMatch[1] !== defaultParent;
+              const responsible = event.assigned_parent || defaultParent;
+              const isOverridden = event.assigned_parent && event.assigned_parent !== defaultParent;
               const parentName = getCustodyName(responsible);
               const otherParent = responsible === "dad" ? "mom" : "dad";
               const parentHome = PARENT_HOMES[responsible];
-              const driveMin = event.location ? estimateDriveFromHome(parentHome.address, event.location) : null;
+
+              // Traffic-aware drive time
+              const hour = startDate.getHours();
+              const isRushHour = (hour >= 7 && hour <= 9) || (hour >= 16 && hour <= 18);
+              const baseDrive = event.location ? estimateDriveFromHome(parentHome.address, event.location) : null;
+              const driveMin = baseDrive !== null ? Math.round(baseDrive * (isRushHour ? 1.3 : 1)) : null;
+
               const arriveEarly = isGame ? 40 : 10;
               const departBy = driveMin !== null && !event.all_day
                 ? new Date(startDate.getTime() - (driveMin + arriveEarly) * 60000)
@@ -448,14 +452,10 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                   <button
                     onClick={async () => {
                       if (!onUpdate) return;
-                      // Toggle to the other parent
                       const newParent = otherParent;
-                      const currentDesc = event.description || "";
-                      const cleanDesc = currentDesc.replace(/\s*assigned_parent:(dad|mom)/, "");
-                      const newDesc = newParent === defaultParent
-                        ? cleanDesc // switching back to default, remove override
-                        : `${cleanDesc} assigned_parent:${newParent}`;
-                      await onUpdate(event.id, { description: newDesc.trim() });
+                      // Set to null if switching back to default
+                      const value = newParent === defaultParent ? null : newParent;
+                      await onUpdate(event.id, { assigned_parent: value });
                     }}
                     className={`font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors ${
                       responsible === "dad" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
@@ -474,7 +474,7 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                     <span className="text-[var(--color-text-secondary)] flex items-center gap-1">
                       <Car className="w-3 h-3" />
                       leave by <span className="font-semibold text-[var(--color-text)]">{format(departBy, "h:mm a")}</span>
-                      <span className="text-[10px]">({driveMin}m)</span>
+                      <span className="text-[10px]">({driveMin}m{isRushHour ? " rush hr" : ""})</span>
                     </span>
                   )}
                 </div>
