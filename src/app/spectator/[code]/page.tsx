@@ -16,8 +16,8 @@ interface SpectatorEvent {
   location: string | null;
   category: string;
   all_day: boolean;
+  status: string;
   children: { name: string; color: string | null }[];
-  rsvps: { name: string; status: string }[];
 }
 
 export default function SpectatorPage() {
@@ -50,47 +50,19 @@ export default function SpectatorPage() {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
 
-    // Get household member names for RSVP display
-    const { data: members } = await supabase
-      .from("household_members")
-      .select("user_id")
-      .eq("household_id", household.id)
-      .eq("invite_status", "accepted");
-    const memberIds = (members || []).map((m) => m.user_id).filter(Boolean);
-
-    const { data: profiles } = memberIds.length > 0
-      ? await supabase.from("profiles").select("id, display_name").in("id", memberIds)
-      : { data: [] };
-    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.display_name]));
-
     const { data: eventsData } = await supabase
       .from("events")
-      .select("id, title, start_time, end_time, location, category, all_day, event_children(children(name, color))")
+      .select("id, title, start_time, end_time, location, category, all_day, status, event_children(children(name, color))")
       .eq("household_id", household.id)
       .eq("visibility", "public")
       .gte("start_time", monthStart.toISOString())
       .lte("start_time", monthEnd.toISOString())
       .order("start_time");
 
-    const eventIds = (eventsData || []).map((e: any) => e.id);
-    const { data: rsvps } = eventIds.length > 0
-      ? await supabase.from("event_rsvps").select("event_id, user_id, status").in("event_id", eventIds)
-      : { data: [] };
-
-    // Group RSVPs by event
-    const rsvpsByEvent = new Map<string, { name: string; status: string }[]>();
-    for (const r of (rsvps || [])) {
-      if (!rsvpsByEvent.has(r.event_id)) rsvpsByEvent.set(r.event_id, []);
-      rsvpsByEvent.get(r.event_id)!.push({
-        name: profileMap.get(r.user_id) || "Parent",
-        status: r.status,
-      });
-    }
-
     setEvents((eventsData || []).map((e: any) => ({
       ...e,
       children: e.event_children?.map((ec: any) => ec.children).filter(Boolean) || [],
-      rsvps: rsvpsByEvent.get(e.id) || [],
+      status: e.status || "active",
     })));
     setLoading(false);
   }, [supabase, code, currentMonth]);
@@ -164,17 +136,19 @@ export default function SpectatorPage() {
                 const e = ev.end_time ? new Date(ev.end_time) : null;
                 const color = ev.children[0]?.color || CATEGORY_COLORS[ev.category as keyof typeof CATEGORY_COLORS] || "#6b7280";
                 const game = isGameEvent(ev.title);
+                const cancelled = ev.status === "cancelled" || ev.status === "postponed";
                 return (
-                  <div key={ev.id} className={`bg-white rounded-lg p-3 flex gap-2.5 ${game ? "border-l-4" : "border-l-2"}`} style={{ borderLeftColor: color }}>
+                  <div key={ev.id} className={`rounded-lg p-3 flex gap-2.5 ${cancelled ? "bg-gray-100 opacity-60" : "bg-white"} ${game && !cancelled ? "border-l-4" : "border-l-2"}`} style={{ borderLeftColor: cancelled ? "#d1d5db" : color }}>
                     <div className="flex-1 min-w-0">
                       {/* WHO */}
                       {ev.children.length > 0 && (
                         <p className="text-xs font-semibold" style={{ color }}>{ev.children.map((c) => c.name).join(", ")}</p>
                       )}
                       {/* WHAT */}
-                      <p className={`${game ? "font-bold" : "font-medium"} text-sm`}>
+                      <p className={`text-sm ${cancelled ? "line-through text-gray-400" : game ? "font-bold" : "font-medium"}`}>
                         {ev.title}
-                        {game && <span className="ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700">GAME</span>}
+                        {cancelled && <span className={`ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded no-underline ${ev.status === "cancelled" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>{ev.status === "cancelled" ? "CANCELLED" : "POSTPONED"}</span>}
+                        {game && !cancelled && <span className="ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700">GAME</span>}
                       </p>
                       {/* WHEN */}
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
@@ -191,16 +165,12 @@ export default function SpectatorPage() {
                           <Navigation className="w-2.5 h-2.5 shrink-0" />
                         </a>
                       )}
-                      {/* RSVP status */}
-                      {ev.rsvps.length > 0 && (
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          {ev.rsvps.map((r, i) => (
-                            <span key={i} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                              r.status === "going" ? "bg-green-50 text-green-600" :
-                              r.status === "maybe" ? "bg-amber-50 text-amber-600" :
-                              "bg-red-50 text-red-500"
-                            }`}>
-                              {r.name.split(" ")[0]}: {r.status === "going" ? "Going" : r.status === "maybe" ? "Maybe" : "Not going"}
+                      {/* Kid attendance */}
+                      {ev.children.length > 0 && (
+                        <div className="flex items-center gap-2 mt-1.5">
+                          {ev.children.map((c, i) => (
+                            <span key={i} className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">
+                              {c.name}: Playing
                             </span>
                           ))}
                         </div>

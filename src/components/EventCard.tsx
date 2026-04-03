@@ -304,13 +304,16 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
   }
 
   const isGame = isGameEvent(event.title);
+  const isCancelled = event.status === "cancelled" || event.status === "postponed";
 
   return (
     <div className={`rounded-xl p-4 flex gap-3 ${
-      isGame
-        ? "bg-white border-2 shadow-sm"
-        : "bg-gray-50/70 border border-[var(--color-border)]"
-    }`} style={isGame ? { borderColor: barColor } : {}}>
+      isCancelled
+        ? "bg-gray-100 border border-gray-200 opacity-60"
+        : isGame
+          ? "bg-white border-2 shadow-sm"
+          : "bg-gray-50/70 border border-[var(--color-border)]"
+    }`} style={isGame && !isCancelled ? { borderColor: barColor } : {}}>
       {/* Color bar */}
       <div
         className={`rounded-full shrink-0 ${isGame ? "w-2" : "w-1.5"}`}
@@ -319,11 +322,18 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h3 className={`truncate ${isGame ? "font-bold text-[var(--color-text)]" : "font-semibold text-[var(--color-text)]"}`}>
+          <h3 className={`truncate ${isCancelled ? "line-through text-gray-400" : isGame ? "font-bold text-[var(--color-text)]" : "font-semibold text-[var(--color-text)]"}`}>
             {event.title}
           </h3>
           <div className="flex items-center gap-1 shrink-0">
-            {isGame && (
+            {isCancelled && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                event.status === "cancelled" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
+              }`}>
+                {event.status === "cancelled" ? "Cancelled" : "Postponed"}
+              </span>
+            )}
+            {isGame && !isCancelled && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wider">
                 Game
               </span>
@@ -338,12 +348,29 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
               {CATEGORY_LABELS[event.category]}
             </span>
             {onUpdate && !showConfirm && (
-              <button
-                onClick={startEdit}
-                className="p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
+              <>
+                {isCancelled ? (
+                  <button
+                    onClick={() => onUpdate(event.id, { status: "active" })}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-600 hover:bg-green-200"
+                  >
+                    Restore
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onUpdate(event.id, { status: "cancelled" })}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-400 hover:bg-red-100"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={startEdit}
+                  className="p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </>
             )}
             {onDelete && !showConfirm && (
               <button

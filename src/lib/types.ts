@@ -200,6 +200,7 @@ export interface CalendarEvent {
   created_by: string;
   created_at: string;
   assigned_parent: "dad" | "mom" | null;
+  status: "active" | "cancelled" | "postponed";
   children?: Child[];
 }
 
