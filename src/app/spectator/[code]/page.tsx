@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Navigation } from "lucide-react";
-import { CATEGORY_COLORS, isGameEvent } from "@/lib/types";
+import { CATEGORY_COLORS, CATEGORY_LABELS, isGameEvent } from "@/lib/types";
 // EventMedia removed from MVP
 
 interface SpectatorEvent {
@@ -167,12 +167,17 @@ export default function SpectatorPage() {
                       {ev.children.length > 0 && (
                         <p className="text-xs font-semibold" style={{ color }}>{ev.children.map((c) => c.name).join(", ")}</p>
                       )}
-                      {/* WHAT */}
-                      <p className={`text-sm ${cancelled ? "line-through text-gray-400" : game ? "font-bold" : "font-medium"}`}>
-                        {ev.title}
-                        {cancelled && <span className={`ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded no-underline ${ev.status === "cancelled" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>{ev.status === "cancelled" ? "CANCELLED" : "POSTPONED"}</span>}
-                        {game && !cancelled && <span className="ml-1.5 text-[10px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700">GAME</span>}
-                      </p>
+                      {/* WHAT + SPORT */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className={`text-sm ${cancelled ? "line-through text-gray-400" : game ? "font-bold" : "font-medium"}`}>
+                          {ev.title}
+                        </p>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${color}15`, color }}>
+                          {CATEGORY_LABELS[ev.category as keyof typeof CATEGORY_LABELS] || ev.category}
+                        </span>
+                        {game && !cancelled && <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700">GAME</span>}
+                        {cancelled && <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${ev.status === "cancelled" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}`}>{ev.status === "cancelled" ? "CANCELLED" : "POSTPONED"}</span>}
+                      </div>
                       {/* WHEN */}
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <Clock className="w-3 h-3" />
