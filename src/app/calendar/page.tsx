@@ -20,6 +20,7 @@ import QuickAdd from "@/components/QuickAdd";
 import EventCard from "@/components/EventCard";
 import CalendarFeeds from "@/components/CalendarFeeds";
 import ConflictAlert from "@/components/ConflictAlert";
+import MonthSummary from "@/components/MonthSummary";
 import { type CalendarEvent, type Child, CATEGORY_COLORS, isGameEvent } from "@/lib/types";
 
 export default function CalendarPage() {
@@ -336,6 +337,15 @@ export default function CalendarPage() {
             ))}
           </div>
         )}
+
+        {/* Month heads-up: conflicts, high travel, busy days */}
+        <div className="px-4 pt-3">
+          <MonthSummary
+            events={events}
+            currentMonth={currentMonth}
+            onSelectDate={(d) => setSelectedDate(d)}
+          />
+        </div>
 
         {/* Selected date events */}
         <div className="px-4 py-3">

@@ -44,6 +44,77 @@ export interface Profile {
   display_name: string;
   phone: string | null;
   avatar_url: string | null;
+  home_address: string | null;
+  home_label: string | null;
+}
+
+// Known parent homes for drive time estimates
+export const PARENT_HOMES: Record<string, { address: string; label: string }> = {
+  dad: { address: "341 The Trail, Fiskdale, MA", label: "Dad's" },
+  mom: { address: "176 Arvidson Rd, Woodstock, CT", label: "Mom's" },
+};
+
+// Estimate drive time from a home to a venue (minutes)
+// Heuristic based on central MA/CT geography
+export function estimateDriveFromHome(homeAddress: string, eventLocation: string): number {
+  if (!eventLocation) return 20;
+  const home = homeAddress.toLowerCase();
+  const venue = eventLocation.toLowerCase();
+
+  // Same town check
+  const homeTown = home.includes("fiskdale") ? "fiskdale"
+    : home.includes("woodstock") ? "woodstock"
+    : home.includes("sturbridge") ? "sturbridge"
+    : home.split(",")[1]?.trim() || "";
+
+  if (venue.includes(homeTown) && homeTown.length > 3) return 5;
+
+  // Adjacent town heuristics for central MA/CT
+  const nearPairs: Record<string, string[]> = {
+    fiskdale: ["sturbridge", "tantasqua", "brimfield", "holland"],
+    sturbridge: ["fiskdale", "tantasqua", "southbridge", "charlton"],
+    woodstock: ["southbridge", "putnam", "thompson", "pomfret"],
+    southbridge: ["sturbridge", "woodstock", "charlton", "dudley"],
+    charlton: ["sturbridge", "southbridge", "oxford", "dudley"],
+    westborough: ["northborough", "shrewsbury", "southborough"],
+    boylston: ["shrewsbury", "west_boylston", "sterling"],
+    mendon: ["milford", "uxbridge", "bellingham", "hopedale"],
+    billerica: ["chelmsford", "bedford", "burlington", "tewksbury"],
+  };
+
+  for (const [town, neighbors] of Object.entries(nearPairs)) {
+    if (home.includes(town) && neighbors.some((n) => venue.includes(n))) return 15;
+    if (venue.includes(town) && neighbors.some((n) => home.includes(n))) return 15;
+  }
+
+  // Check if event is at a known nearby venue
+  if (home.includes("fiskdale") || home.includes("sturbridge")) {
+    if (venue.includes("tantasqua")) return 5;
+    if (venue.includes("southbridge")) return 15;
+    if (venue.includes("woodstock")) return 20;
+    if (venue.includes("charlton") || venue.includes("dudley")) return 20;
+    if (venue.includes("westborough")) return 35;
+    if (venue.includes("shrewsbury")) return 30;
+    if (venue.includes("milford") || venue.includes("mendon")) return 40;
+    if (venue.includes("boylston")) return 35;
+    if (venue.includes("billerica")) return 60;
+    if (venue.includes("ashburnham")) return 55;
+  }
+
+  if (home.includes("woodstock")) {
+    if (venue.includes("tantasqua") || venue.includes("fiskdale") || venue.includes("sturbridge")) return 20;
+    if (venue.includes("southbridge")) return 10;
+    if (venue.includes("charlton") || venue.includes("dudley")) return 25;
+    if (venue.includes("westborough")) return 40;
+    if (venue.includes("shrewsbury")) return 35;
+    if (venue.includes("milford") || venue.includes("mendon")) return 45;
+    if (venue.includes("boylston")) return 40;
+    if (venue.includes("billerica")) return 65;
+    if (venue.includes("ashburnham")) return 60;
+  }
+
+  // Default: unknown distance
+  return 30;
 }
 
 export interface HouseholdMember {

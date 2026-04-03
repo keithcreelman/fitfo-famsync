@@ -5,12 +5,13 @@ import { format } from "date-fns";
 import {
   MapPin, Clock, Trash2, User, AlertCircle, Navigation,
   Pencil, X, Check, Loader2, CheckCircle, HelpCircle, XCircle,
-  MessageSquare,
+  MessageSquare, Car,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import {
   type CalendarEvent, type EventCategory, type Child,
   CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent,
+  PARENT_HOMES, estimateDriveFromHome,
 } from "@/lib/types";
 
 type RsvpStatus = "going" | "maybe" | "not_going";
@@ -436,6 +437,27 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                   <span className="truncate">{event.location}</span>
                   <Navigation className="w-3 h-3 shrink-0" />
                 </a>
+              </div>
+            )}
+
+            {/* DEPART BY — from each parent's home */}
+            {event.location && !event.all_day && (
+              <div className="flex gap-3 mt-1.5">
+                {Object.entries(PARENT_HOMES).map(([key, home]) => {
+                  const driveMin = estimateDriveFromHome(home.address, event.location!);
+                  const arriveEarly = isGame ? 40 : 10; // 40 min early for games, 10 for practice
+                  const totalLeadMin = driveMin + arriveEarly;
+                  const departBy = new Date(startDate.getTime() - totalLeadMin * 60000);
+                  return (
+                    <div key={key} className="flex items-center gap-1 text-[11px] text-[var(--color-text-secondary)]">
+                      <Car className="w-3 h-3 shrink-0" />
+                      <span>
+                        {home.label} depart <span className="font-semibold text-[var(--color-text)]">{format(departBy, "h:mm a")}</span>
+                        <span className="text-[10px] ml-0.5">({driveMin}m drive)</span>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
