@@ -65,7 +65,7 @@ function icsDateToISO(icsDate: string): string {
 
 export async function POST(request: Request) {
   try {
-    const { ics_url, household_id, user_id } = await request.json();
+    const { ics_url, household_id, user_id, child_id } = await request.json();
 
     if (!ics_url || !household_id || !user_id) {
       return NextResponse.json(
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         }
       } else {
         // New event
-        await supabase.from("events").insert({
+        const { data: newEvent } = await supabase.from("events").insert({
           household_id,
           title: event.summary,
           start_time: startISO,
@@ -150,7 +150,15 @@ export async function POST(request: Request) {
           source_type: "ics_import",
           description: `ics_uid:${event.uid}`,
           created_by: user_id,
-        });
+        }).select("id").single();
+
+        // Tag child if specified
+        if (child_id && newEvent) {
+          await supabase.from("event_children").insert({
+            event_id: newEvent.id,
+            child_id,
+          });
+        }
         added++;
       }
     }

@@ -30,9 +30,10 @@ export default function SettingsPage() {
   const [calendarPopupOpen, setCalendarPopupOpen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState<"link" | "code" | null>(null);
   const [userId, setUserId] = useState("");
-  const [icsFeeds, setIcsFeeds] = useState<{ url: string; label: string }[]>([]);
+  const [icsFeeds, setIcsFeeds] = useState<{ url: string; label: string; child_id?: string }[]>([]);
   const [icsUrlInput, setIcsUrlInput] = useState("");
   const [icsLabelInput, setIcsLabelInput] = useState("");
+  const [icsChildId, setIcsChildId] = useState("");
   const [syncing, setSyncing] = useState<string | null>(null); // URL being synced
   const [syncResult, setSyncResult] = useState("");
 
@@ -112,10 +113,11 @@ export default function SettingsPage() {
       return;
     }
 
-    const newFeeds = [...icsFeeds, { url, label }];
+    const newFeeds = [...icsFeeds, { url, label, child_id: icsChildId || undefined }];
     saveFeeds(newFeeds);
     setIcsUrlInput("");
     setIcsLabelInput("");
+    setIcsChildId("");
 
     // Sync immediately
     await handleSyncFeed(url);
@@ -126,6 +128,8 @@ export default function SettingsPage() {
     setSyncing(url);
     setSyncResult("");
 
+    const feed = icsFeeds.find((f) => f.url === url);
+
     try {
       const res = await fetch("/api/sync-ics", {
         method: "POST",
@@ -134,6 +138,7 @@ export default function SettingsPage() {
           ics_url: url,
           household_id: household.id,
           user_id: userId,
+          child_id: feed?.child_id || null,
         }),
       });
       const data = await res.json();
@@ -303,10 +308,15 @@ export default function SettingsPage() {
           </div>
           <div className="p-4 space-y-3">
             {/* Existing feeds */}
-            {icsFeeds.map((feed) => (
+            {icsFeeds.map((feed) => {
+              const childName = children.find((c) => c.id === feed.child_id)?.name;
+              return (
               <div key={feed.url} className="flex items-center gap-2 bg-gray-50 rounded-lg p-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">{feed.label}</p>
+                  {childName && (
+                    <p className="text-xs text-[var(--color-primary)] font-medium">{childName}</p>
+                  )}
                   <p className="text-xs text-[var(--color-text-secondary)] truncate">{feed.url}</p>
                 </div>
                 <button
@@ -327,7 +337,8 @@ export default function SettingsPage() {
                   ✕
                 </button>
               </div>
-            ))}
+            );
+            })}
 
             {/* Add new feed */}
             <p className="text-sm text-[var(--color-text-secondary)]">
@@ -346,9 +357,19 @@ export default function SettingsPage() {
                   type="text"
                   value={icsLabelInput}
                   onChange={(e) => setIcsLabelInput(e.target.value)}
-                  placeholder="Label (auto-detected)"
+                  placeholder="Label (e.g. Parker Lacrosse)"
                   className="flex-1 px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                 />
+                <select
+                  value={icsChildId}
+                  onChange={(e) => setIcsChildId(e.target.value)}
+                  className="px-3 py-2.5 border border-[var(--color-border)] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                >
+                  <option value="">Child</option>
+                  {children.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nickname || c.name}</option>
+                  ))}
+                </select>
                 <button
                   onClick={handleAddFeed}
                   disabled={!!syncing || !icsUrlInput.trim()}
