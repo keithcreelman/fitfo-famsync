@@ -10,7 +10,7 @@ import {
 import { createClient } from "@/lib/supabase-browser";
 import {
   type CalendarEvent, type EventCategory, type Child,
-  CATEGORY_LABELS, CATEGORY_COLORS,
+  CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent,
 } from "@/lib/types";
 
 type RsvpStatus = "going" | "maybe" | "not_going";
@@ -256,20 +256,31 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
     );
   }
 
+  const isGame = isGameEvent(event.title);
+
   return (
-    <div className="bg-white rounded-xl border border-[var(--color-border)] p-4 flex gap-3">
+    <div className={`rounded-xl p-4 flex gap-3 ${
+      isGame
+        ? "bg-white border-2 shadow-sm"
+        : "bg-gray-50/70 border border-[var(--color-border)]"
+    }`} style={isGame ? { borderColor: barColor } : {}}>
       {/* Color bar */}
       <div
-        className="w-1.5 rounded-full shrink-0"
+        className={`rounded-full shrink-0 ${isGame ? "w-2" : "w-1.5"}`}
         style={{ backgroundColor: barColor }}
       />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-[var(--color-text)] truncate">
+          <h3 className={`truncate ${isGame ? "font-bold text-[var(--color-text)]" : "font-semibold text-[var(--color-text)]"}`}>
             {event.title}
           </h3>
           <div className="flex items-center gap-1 shrink-0">
+            {isGame && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase tracking-wider">
+                Game
+              </span>
+            )}
             <span
               className="text-xs font-medium px-2 py-0.5 rounded-full"
               style={{

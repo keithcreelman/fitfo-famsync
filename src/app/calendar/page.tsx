@@ -19,7 +19,8 @@ import BottomNav from "@/components/BottomNav";
 import QuickAdd from "@/components/QuickAdd";
 import EventCard from "@/components/EventCard";
 import CalendarFeeds from "@/components/CalendarFeeds";
-import { type CalendarEvent, type Child, CATEGORY_COLORS } from "@/lib/types";
+import ConflictAlert from "@/components/ConflictAlert";
+import { type CalendarEvent, type Child, CATEGORY_COLORS, isGameEvent } from "@/lib/types";
 
 export default function CalendarPage() {
   const supabase = createClient();
@@ -108,14 +109,38 @@ export default function CalendarPage() {
     ? events
     : events.filter((e) => e.children?.some((c) => c.id === filterChildId));
 
-  // Events for selected date
-  const selectedEvents = filteredEvents.filter((e) =>
-    isSameDay(new Date(e.start_time), selectedDate)
-  );
+  // Events for selected date — games first, then by time
+  const selectedEvents = filteredEvents
+    .filter((e) => isSameDay(new Date(e.start_time), selectedDate))
+    .sort((a, b) => {
+      const aGame = isGameEvent(a.title) ? 0 : 1;
+      const bGame = isGameEvent(b.title) ? 0 : 1;
+      if (aGame !== bGame) return aGame - bGame;
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+    });
 
   // Events per day (for dots)
   function getEventsForDay(day: Date) {
     return filteredEvents.filter((e) => isSameDay(new Date(e.start_time), day));
+  }
+
+  // Quick conflict check for a day (for calendar dot indicator)
+  function dayHasConflict(dayEvents: CalendarEvent[]): boolean {
+    if (dayEvents.length < 2) return false;
+    const sorted = [...dayEvents].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i];
+      const b = sorted[i + 1];
+      const aChildIds = new Set(a.children?.map((c) => c.id) || []);
+      const bChildIds = new Set(b.children?.map((c) => c.id) || []);
+      if ([...aChildIds].some((id) => bChildIds.has(id))) continue;
+      if (aChildIds.size === 0 && bChildIds.size === 0) continue;
+      const aEnd = a.end_time ? new Date(a.end_time) : new Date(new Date(a.start_time).getTime() + 3600000);
+      const bStart = new Date(b.start_time);
+      const gap = (bStart.getTime() - aEnd.getTime()) / 60000;
+      if (gap < 35) return true; // Less than 35 min gap = potential conflict
+    }
+    return false;
   }
 
   async function handleUpdateEvent(eventId: string, updates: Record<string, unknown>, childIds?: string[]) {
@@ -234,6 +259,7 @@ export default function CalendarPage() {
               const isSelected = isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isToday = isSameDay(day, new Date());
+              const hasConflict = dayHasConflict(dayEvents);
 
               return (
                 <button
@@ -248,21 +274,25 @@ export default function CalendarPage() {
                   } ${!isCurrentMonth ? "opacity-30" : ""}`}
                 >
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium relative ${
                       isSelected ? "text-white" : ""
                     }`}
                   >
                     {format(day, "d")}
+                    {hasConflict && !isSelected && (
+                      <span className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                    )}
                   </span>
                   {/* Event dots */}
                   {dayEvents.length > 0 && (
                     <div className="flex gap-0.5 mt-1">
-                      {dayEvents.slice(0, 3).map((ev) => {
+                      {dayEvents.slice(0, 4).map((ev) => {
                         const dotColor = ev.children?.[0]?.color || CATEGORY_COLORS[ev.category] || "#6b7280";
+                        const game = isGameEvent(ev.title);
                         return (
                         <div
                           key={ev.id}
-                          className="w-1.5 h-1.5 rounded-full"
+                          className={`rounded-full ${game ? "w-2 h-2" : "w-1.5 h-1.5"}`}
                           style={{
                             backgroundColor: isSelected ? "white" : dotColor,
                           }}
@@ -312,6 +342,9 @@ export default function CalendarPage() {
           <h2 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-3">
             {format(selectedDate, "EEEE, MMMM d")}
           </h2>
+
+          {/* Conflict warnings */}
+          <ConflictAlert events={selectedEvents} />
 
           {selectedEvents.length === 0 ? (
             <div className="text-center py-8 text-[var(--color-text-secondary)]">

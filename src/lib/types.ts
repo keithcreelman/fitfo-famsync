@@ -68,6 +68,22 @@ export interface Child {
   color: string | null;
 }
 
+// Detect if event is a game (vs practice/training)
+export function isGameEvent(title: string): boolean {
+  const lower = title.toLowerCase();
+  return (
+    lower.includes(" vs ") ||
+    lower.includes(" vs.") ||
+    lower.includes("game") ||
+    lower.includes("match") ||
+    lower.includes("tourney") ||
+    lower.includes("tournament") ||
+    lower.includes("playoff") ||
+    lower.includes("championship") ||
+    lower.includes("scrimmage")
+  );
+}
+
 // Preset child colors — good, distinct, accessible
 export const CHILD_COLOR_OPTIONS = [
   { value: "#EC4899", label: "Pink" },
