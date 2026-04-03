@@ -217,6 +217,22 @@ export default function SettingsPage() {
               >
                 {copiedInvite === "link" ? "✓ Link Copied!" : "Copy Invite Link"}
               </button>
+              <div className="border-t border-[var(--color-border)] pt-3 mt-3">
+                <p className="text-xs text-[var(--color-text-secondary)] mb-2">
+                  Share a view-only link with family and friends (they only see sports &amp; band events):
+                </p>
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/spectator/${household.invite_code}`;
+                    navigator.clipboard.writeText(url);
+                    setCopiedInvite("code");
+                    setTimeout(() => setCopiedInvite(null), 2000);
+                  }}
+                  className="w-full py-2.5 bg-gray-100 rounded-lg text-sm font-medium text-[var(--color-text)] hover:bg-gray-200"
+                >
+                  Copy Spectator Link
+                </button>
+              </div>
             </div>
           </section>
         )}

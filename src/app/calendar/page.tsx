@@ -23,6 +23,7 @@ import ConflictAlert from "@/components/ConflictAlert";
 import MonthSummary from "@/components/MonthSummary";
 import ChatAssistant from "@/components/ChatAssistant";
 import { type CalendarEvent, type Child, CATEGORY_COLORS, isGameEvent } from "@/lib/types";
+import { getCustodyParent } from "@/lib/custody";
 
 export default function CalendarPage() {
   const supabase = createClient();
@@ -262,6 +263,7 @@ export default function CalendarPage() {
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isToday = isSameDay(day, new Date());
               const hasConflict = dayHasConflict(dayEvents);
+              const custodyParent = getCustodyParent(day);
 
               return (
                 <button
@@ -274,6 +276,9 @@ export default function CalendarPage() {
                         ? "bg-blue-50"
                         : ""
                   } ${!isCurrentMonth ? "opacity-30" : ""}`}
+                  style={!isSelected && isCurrentMonth ? {
+                    borderBottom: `2px solid ${custodyParent === "dad" ? "#3b82f6" : "#a855f7"}`,
+                  } : {}}
                 >
                   <span
                     className={`text-sm font-medium relative ${
@@ -307,6 +312,12 @@ export default function CalendarPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Custody legend */}
+        <div className="px-4 pt-2 flex items-center justify-center gap-4 text-[10px] text-[var(--color-text-secondary)]">
+          <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-500 rounded" /> Keith&apos;s days</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-purple-500 rounded" /> Jen&apos;s days</span>
         </div>
 
         {/* Child filter */}
