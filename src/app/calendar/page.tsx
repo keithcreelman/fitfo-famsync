@@ -31,6 +31,7 @@ export default function CalendarPage() {
   const [userId, setUserId] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [filterChildId, setFilterChildId] = useState<string | "all">("all");
 
   const loadEvents = useCallback(async () => {
     const {
@@ -102,14 +103,35 @@ export default function CalendarPage() {
     end: calendarEnd,
   });
 
+  // Apply child filter
+  const filteredEvents = filterChildId === "all"
+    ? events
+    : events.filter((e) => e.children?.some((c) => c.id === filterChildId));
+
   // Events for selected date
-  const selectedEvents = events.filter((e) =>
+  const selectedEvents = filteredEvents.filter((e) =>
     isSameDay(new Date(e.start_time), selectedDate)
   );
 
   // Events per day (for dots)
   function getEventsForDay(day: Date) {
-    return events.filter((e) => isSameDay(new Date(e.start_time), day));
+    return filteredEvents.filter((e) => isSameDay(new Date(e.start_time), day));
+  }
+
+  async function handleUpdateEvent(eventId: string, updates: Record<string, unknown>, childIds?: string[]) {
+    await supabase.from("events").update(updates).eq("id", eventId);
+
+    if (childIds !== undefined) {
+      // Replace children
+      await supabase.from("event_children").delete().eq("event_id", eventId);
+      if (childIds.length > 0) {
+        await supabase.from("event_children").insert(
+          childIds.map((childId) => ({ event_id: eventId, child_id: childId }))
+        );
+      }
+    }
+
+    loadEvents();
   }
 
   async function handleSaveEvent(eventData: {
@@ -255,6 +277,36 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* Child filter */}
+        {children.length > 0 && (
+          <div className="px-4 pt-3 flex gap-2 flex-wrap">
+            <button
+              onClick={() => setFilterChildId("all")}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                filterChildId === "all"
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "bg-gray-100 text-[var(--color-text-secondary)]"
+              }`}
+            >
+              All
+            </button>
+            {children.map((child) => (
+              <button
+                key={child.id}
+                onClick={() => setFilterChildId(filterChildId === child.id ? "all" : child.id)}
+                className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${
+                  filterChildId === child.id
+                    ? "text-white border-transparent"
+                    : "bg-white border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                }`}
+                style={filterChildId === child.id ? { backgroundColor: child.color || "var(--color-primary)" } : {}}
+              >
+                {child.nickname || child.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Selected date events */}
         <div className="px-4 py-3">
           <h2 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-3">
@@ -274,7 +326,7 @@ export default function CalendarPage() {
           ) : (
             <div className="space-y-2">
               {selectedEvents.map((event) => (
-                <EventCard key={event.id} event={event} onDelete={async (id) => {
+                <EventCard key={event.id} event={event} allChildren={children} onUpdate={handleUpdateEvent} onDelete={async (id) => {
                   await supabase.from("event_children").delete().eq("event_id", id);
                   await supabase.from("events").delete().eq("id", id);
                   loadEvents();
