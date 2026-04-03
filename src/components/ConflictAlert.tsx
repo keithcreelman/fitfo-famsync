@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, Car, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 import { type CalendarEvent, isGameEvent } from "@/lib/types";
+import { getResponsibleParent } from "@/lib/custody";
 import { format } from "date-fns";
 
 interface ConflictAlertProps {
@@ -64,15 +65,20 @@ function detectConflicts(events: CalendarEvent[], skippedEventIds: Set<string>):
       const a = sorted[i];
       const b = sorted[j];
 
-      // Skip if same child or any child overlap — a child can't be in 2 places,
-      // that's not a logistics conflict, it's just a scheduling issue in the source
+      // Skip if same child or any child overlap
       const aChildIds = new Set(a.children?.map((c) => c.id) || []);
       const bChildIds = new Set(b.children?.map((c) => c.id) || []);
       const hasChildOverlap = [...aChildIds].some((id) => bChildIds.has(id));
       if (hasChildOverlap) continue;
       if (aChildIds.size === 0 && bChildIds.size === 0) continue;
-      // Skip if either event has no children assigned
       if (aChildIds.size === 0 || bChildIds.size === 0) continue;
+
+      // Only show conflict if the SAME parent is responsible for both events
+      const aChildNames = a.children?.map((c) => c.nickname || c.name) || [];
+      const bChildNames = b.children?.map((c) => c.nickname || c.name) || [];
+      const aParent = getResponsibleParent(new Date(a.start_time), a.title, aChildNames, a.category);
+      const bParent = getResponsibleParent(new Date(b.start_time), b.title, bChildNames, b.category);
+      if (aParent !== bParent) continue; // Different parents handle these — no conflict
 
       const aEnd = a.end_time
         ? new Date(a.end_time)

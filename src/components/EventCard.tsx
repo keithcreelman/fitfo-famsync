@@ -13,6 +13,7 @@ import {
   CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent,
   PARENT_HOMES, estimateDriveFromHome,
 } from "@/lib/types";
+import { getResponsibleParent, getCustodyName } from "@/lib/custody";
 
 type RsvpStatus = "going" | "maybe" | "not_going";
 
@@ -440,26 +441,35 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
               </div>
             )}
 
-            {/* DEPART BY — from each parent's home */}
-            {event.location && !event.all_day && (
-              <div className="flex gap-3 mt-1.5">
-                {Object.entries(PARENT_HOMES).map(([key, home]) => {
-                  const driveMin = estimateDriveFromHome(home.address, event.location!);
-                  const arriveEarly = isGame ? 40 : 10; // 40 min early for games, 10 for practice
-                  const totalLeadMin = driveMin + arriveEarly;
-                  const departBy = new Date(startDate.getTime() - totalLeadMin * 60000);
-                  return (
-                    <div key={key} className="flex items-center gap-1 text-[11px] text-[var(--color-text-secondary)]">
-                      <Car className="w-3 h-3 shrink-0" />
-                      <span>
-                        {home.label} depart <span className="font-semibold text-[var(--color-text)]">{format(departBy, "h:mm a")}</span>
-                        <span className="text-[10px] ml-0.5">({driveMin}m drive)</span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {/* RESPONSIBLE PARENT + DEPART BY */}
+            {(() => {
+              const childNames = event.children?.map((c) => c.nickname || c.name) || [];
+              const responsible = getResponsibleParent(startDate, event.title, childNames, event.category);
+              const parentName = getCustodyName(responsible);
+              const parentHome = PARENT_HOMES[responsible];
+              const driveMin = event.location ? estimateDriveFromHome(parentHome.address, event.location) : null;
+              const arriveEarly = isGame ? 40 : 10;
+              const departBy = driveMin !== null && !event.all_day
+                ? new Date(startDate.getTime() - (driveMin + arriveEarly) * 60000)
+                : null;
+
+              return (
+                <div className="flex items-center gap-2 mt-1.5 text-xs flex-wrap">
+                  <span className={`font-semibold px-2 py-0.5 rounded-full ${
+                    responsible === "dad" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                  }`}>
+                    {parentName}
+                  </span>
+                  {departBy && (
+                    <span className="text-[var(--color-text-secondary)] flex items-center gap-1">
+                      <Car className="w-3 h-3" />
+                      leave by <span className="font-semibold text-[var(--color-text)]">{format(departBy, "h:mm a")}</span>
+                      <span className="text-[10px]">({driveMin}m)</span>
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* RSVP / Availability */}
             {userId && rsvpLoaded && (

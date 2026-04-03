@@ -21,6 +21,7 @@ import EventCard from "@/components/EventCard";
 import CalendarFeeds from "@/components/CalendarFeeds";
 import ConflictAlert from "@/components/ConflictAlert";
 import MonthSummary from "@/components/MonthSummary";
+import ChatAssistant from "@/components/ChatAssistant";
 import { type CalendarEvent, type Child, CATEGORY_COLORS, isGameEvent } from "@/lib/types";
 
 export default function CalendarPage() {
@@ -387,6 +388,10 @@ export default function CalendarPage() {
         children={children}
         householdId={householdId}
       />
+
+      {householdId && userId && (
+        <ChatAssistant householdId={householdId} userId={userId} />
+      )}
 
       <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
     </div>

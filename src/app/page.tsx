@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase-browser";
 import { format, startOfDay, addDays } from "date-fns";
 import { Calendar, MessageSquare, ChevronRight } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import ChatAssistant from "@/components/ChatAssistant";
 import QuickAdd from "@/components/QuickAdd";
 import EventCard from "@/components/EventCard";
 import type { CalendarEvent, Child, Household, Profile } from "@/lib/types";
@@ -284,6 +285,10 @@ export default function HomePage() {
         children={children}
         householdId={household?.id || ""}
       />
+
+      {household && user && (
+        <ChatAssistant householdId={household.id} userId={user.id} />
+      )}
 
       <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
     </div>
