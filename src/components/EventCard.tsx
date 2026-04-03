@@ -305,19 +305,29 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
 
   const isGame = isGameEvent(event.title);
   const isCancelled = event.status === "cancelled" || event.status === "postponed";
+  const isSchoolDay = ["no_school", "half_day", "vacation", "school_misc", "school"].includes(event.category);
+  const isNoSchool = ["no_school", "half_day", "vacation"].includes(event.category);
+  // School events always use category color, not child color
+  const displayBarColor = isSchoolDay ? categoryColor : barColor;
 
   return (
     <div className={`rounded-xl p-4 flex gap-3 ${
       isCancelled
         ? "bg-gray-100 border border-gray-200 opacity-60"
-        : isGame
-          ? "bg-white border-2 shadow-sm"
-          : "bg-gray-50/70 border border-[var(--color-border)]"
-    }`} style={isGame && !isCancelled ? { borderColor: barColor } : {}}>
+        : isNoSchool
+          ? "border-2 border-dashed"
+          : isGame
+            ? "bg-white border-2 shadow-sm"
+            : "bg-gray-50/70 border border-[var(--color-border)]"
+    }`} style={
+      isCancelled ? {} :
+      isNoSchool ? { borderColor: categoryColor, backgroundColor: `${categoryColor}08` } :
+      isGame ? { borderColor: barColor } : {}
+    }>
       {/* Color bar */}
       <div
         className={`rounded-full shrink-0 ${isGame ? "w-2" : "w-1.5"}`}
-        style={{ backgroundColor: barColor }}
+        style={{ backgroundColor: displayBarColor }}
       />
 
       <div className="flex-1 min-w-0">
@@ -402,7 +412,8 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
           </div>
         ) : (
           <>
-            {/* WHO */}
+            {/* WHO — skip for school-wide events */}
+            {!isSchoolDay && (
             <div className="flex items-center gap-1.5 mt-1.5">
               {event.children && event.children.length > 0 ? (
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -424,6 +435,7 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                 </>
               )}
             </div>
+            )}
 
             {/* WHEN */}
             <div className="flex items-center gap-1 mt-1 text-sm text-[var(--color-text-secondary)]">
@@ -454,8 +466,8 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
               </div>
             )}
 
-            {/* RESPONSIBLE PARENT + DEPART BY */}
-            {(() => {
+            {/* RESPONSIBLE PARENT + DEPART BY — skip for school events */}
+            {!isSchoolDay && (() => {
               const childNames = event.children?.map((c) => c.nickname || c.name) || [];
               const defaultParent = getResponsibleParent(startDate, event.title, childNames, event.category);
               const responsible = event.assigned_parent || defaultParent;
@@ -509,8 +521,10 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
               );
             })()}
 
-            {/* RSVP + Comments */}
-            {userId && rsvpLoaded && (
+            {/* RSVP + Comments — hide for no-school events */}
+
+            {/* RSVP + Comments — hidden for no-school days */}
+            {userId && rsvpLoaded && !isNoSchool && (
               <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 flex-wrap">
                 <button
                   onClick={() => handleRsvpChange("going")}
