@@ -26,6 +26,7 @@ export default function BottomNav({
     { href: "/import/review?type=screenshot", icon: Camera, label: "Import Screenshot", desc: "Scan a schedule photo" },
     { href: "/import/review?type=ics", icon: FileText, label: "Import ICS File", desc: "Upload calendar file" },
     { href: "/import/review?type=csv", icon: FileText, label: "Import CSV/Excel", desc: "Upload spreadsheet" },
+    { href: "/import/pdf", icon: FileText, label: "Import PDF Calendar", desc: "School calendars, schedules" },
     { href: "/settings", icon: Settings, label: "Settings", desc: "Profile, household, notifications" },
   ];
 
