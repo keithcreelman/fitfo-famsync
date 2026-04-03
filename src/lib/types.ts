@@ -1,6 +1,10 @@
 export type EventCategory =
   | "school"
   | "sports"
+  | "lacrosse"
+  | "soccer"
+  | "basketball"
+  | "flag_football"
   | "medical"
   | "band"
   | "appointment"
@@ -159,6 +163,10 @@ export interface ParsedEventData {
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
   school: "School",
   sports: "Sports",
+  lacrosse: "\uD83E\uDD4D Lacrosse",
+  soccer: "\u26BD Soccer",
+  basketball: "\uD83C\uDFC0 Basketball",
+  flag_football: "\uD83C\uDFC8 Flag Football",
   medical: "Medical",
   band: "Band",
   appointment: "Appointment",
@@ -173,6 +181,10 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
 export const CATEGORY_COLORS: Record<EventCategory, string> = {
   school: "#2563eb",
   sports: "#16a34a",
+  lacrosse: "#16a34a",
+  soccer: "#16a34a",
+  basketball: "#f97316",
+  flag_football: "#7c3aed",
   medical: "#dc2626",
   band: "#9333ea",
   appointment: "#f59e0b",

@@ -326,7 +326,7 @@ export default function CalendarPage() {
           ) : (
             <div className="space-y-2">
               {selectedEvents.map((event) => (
-                <EventCard key={event.id} event={event} allChildren={children} onUpdate={handleUpdateEvent} onDelete={async (id) => {
+                <EventCard key={event.id} event={event} allChildren={children} userId={userId} onUpdate={handleUpdateEvent} onDelete={async (id) => {
                   await supabase.from("event_children").delete().eq("event_id", id);
                   await supabase.from("events").delete().eq("id", id);
                   loadEvents();

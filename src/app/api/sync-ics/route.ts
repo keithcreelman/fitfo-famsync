@@ -17,7 +17,6 @@ function parseICS(icsText: string): ParsedEvent[] {
   const veventBlocks = icsText.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
 
   for (const block of veventBlocks) {
-    // Handle multi-line folded values (lines starting with space are continuations)
     const unfolded = block.replace(/\r?\n[ \t]/g, "");
 
     const getField = (field: string): string => {
@@ -40,8 +39,36 @@ function parseICS(icsText: string): ParsedEvent[] {
   return events;
 }
 
+// Clean up messy ICS titles
+// "Tantasqua.B.78.Black vs AubWorc.B.78.Blue - Home Game"
+// → "Tantasqua vs AubWorc - Home Game"
+function cleanTitle(raw: string): string {
+  let title = raw;
+
+  // Remove common team code patterns: .B.78.Black, .B.7/8.Blue, .G.56.Red etc.
+  // Pattern: dot + letter(s) + dot + number(s) + optional slash + number(s) + dot + word
+  title = title.replace(/\.[A-Z]\.\d+\/?\.?\d*\.?[A-Za-z]*/g, "");
+
+  // Clean up double spaces and trim
+  title = title.replace(/\s{2,}/g, " ").trim();
+
+  // Remove leading/trailing dashes or hyphens from cleanup
+  title = title.replace(/^\s*-\s*/, "").replace(/\s*-\s*$/, "").trim();
+
+  // If title is now empty or too short, return original
+  if (title.length < 3) return raw;
+
+  return title;
+}
+
+// Simplify location: "Fiskdale - Tantasqua HS - Stadium Field, 319 Brookfield Road, Sturbridge, Massachusetts 01518"
+// Keep it all for directions but show a cleaner version as the title
+function cleanLocation(raw: string): string {
+  // Remove newlines from Mojo format
+  return raw.replace(/\n/g, ", ").trim();
+}
+
 function icsDateToISO(icsDate: string): string {
-  // ICS dates: 20260412T130000Z or 20260412T130000
   const clean = icsDate.replace(/[^0-9TZ]/g, "");
   if (clean.length >= 15) {
     const y = clean.slice(0, 4);
@@ -53,7 +80,6 @@ function icsDateToISO(icsDate: string): string {
     const isUTC = clean.endsWith("Z");
     return `${y}-${m}-${d}T${h}:${min}:${s}${isUTC ? "Z" : ""}`;
   }
-  // Date only
   if (clean.length >= 8) {
     const y = clean.slice(0, 4);
     const m = clean.slice(4, 6);
@@ -63,9 +89,19 @@ function icsDateToISO(icsDate: string): string {
   return icsDate;
 }
 
+// Auto-detect sport category from title or feed URL
+function detectSportCategory(title: string, feedUrl: string): string {
+  const combined = `${title} ${feedUrl}`.toLowerCase();
+  if (combined.includes("lacrosse") || combined.includes("lax")) return "lacrosse";
+  if (combined.includes("soccer") || combined.includes("futbol")) return "soccer";
+  if (combined.includes("basketball") || combined.includes("hoops")) return "basketball";
+  if (combined.includes("flag football") || combined.includes("flag_football")) return "flag_football";
+  return "sports";
+}
+
 export async function POST(request: Request) {
   try {
-    const { ics_url, household_id, user_id, child_id } = await request.json();
+    const { ics_url, household_id, user_id, child_id, feed_label } = await request.json();
 
     if (!ics_url || !household_id || !user_id) {
       return NextResponse.json(
@@ -74,7 +110,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch the ICS feed
     const res = await fetch(ics_url, { cache: "no-store" });
     if (!res.ok) {
       return NextResponse.json(
@@ -91,7 +126,7 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // Get existing events from this source to detect changes
+    // Get existing events from this source
     const { data: existing } = await supabase
       .from("events")
       .select("id, title, start_time, end_time, location, description")
@@ -106,53 +141,75 @@ export async function POST(request: Request) {
       })
     );
 
+    // Get existing child links for these events
+    const existingEventIds = (existing || []).map((e) => e.id);
+    const { data: existingChildLinks } = existingEventIds.length > 0
+      ? await supabase
+          .from("event_children")
+          .select("event_id, child_id")
+          .in("event_id", existingEventIds)
+      : { data: [] };
+    const eventHasChild = new Set((existingChildLinks || []).map((l) => l.event_id));
+
     let added = 0;
     let updated = 0;
     let unchanged = 0;
+    let childTagged = 0;
 
     for (const event of parsed) {
       const startISO = icsDateToISO(event.dtstart);
       const endISO = event.dtend ? icsDateToISO(event.dtend) : null;
+      const cleanedTitle = cleanTitle(event.summary);
+      const cleanedLocation = event.location ? cleanLocation(event.location) : null;
+      const sportCategory = detectSportCategory(event.summary + " " + (feed_label || ""), ics_url);
       const existingEvent = existingByUid.get(event.uid);
 
       if (existingEvent) {
-        // Check if anything changed
+        // Check if anything changed (compare against cleaned title)
         const changed =
-          existingEvent.title !== event.summary ||
+          existingEvent.title !== cleanedTitle ||
           existingEvent.start_time !== startISO ||
           existingEvent.end_time !== endISO ||
-          existingEvent.location !== event.location;
+          existingEvent.location !== cleanedLocation;
 
         if (changed) {
           await supabase
             .from("events")
             .update({
-              title: event.summary,
+              title: cleanedTitle,
               start_time: startISO,
               end_time: endISO,
-              location: event.location || null,
+              location: cleanedLocation,
             })
             .eq("id", existingEvent.id);
           updated++;
         } else {
           unchanged++;
         }
+
+        // Tag child on existing events that don't have one yet
+        if (child_id && !eventHasChild.has(existingEvent.id)) {
+          await supabase.from("event_children").insert({
+            event_id: existingEvent.id,
+            child_id,
+          });
+          childTagged++;
+        }
       } else {
         // New event
         const { data: newEvent } = await supabase.from("events").insert({
           household_id,
-          title: event.summary,
+          title: cleanedTitle,
           start_time: startISO,
           end_time: endISO,
-          location: event.location || null,
-          category: "sports",
+          location: cleanedLocation,
+          category: sportCategory,
           all_day: false,
           source_type: "ics_import",
           description: `ics_uid:${event.uid}`,
           created_by: user_id,
         }).select("id").single();
 
-        // Tag child if specified
         if (child_id && newEvent) {
           await supabase.from("event_children").insert({
             event_id: newEvent.id,
@@ -168,6 +225,7 @@ export async function POST(request: Request) {
       added,
       updated,
       unchanged,
+      childTagged,
     });
   } catch (error: unknown) {
     console.error("ICS sync error:", error);

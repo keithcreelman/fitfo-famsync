@@ -96,6 +96,7 @@ export default function CalendarFeeds({
           household_id: householdId,
           user_id: userId,
           child_id: cid || null,
+          feed_label: feed?.label || "",
         }),
       });
       const data = await res.json();

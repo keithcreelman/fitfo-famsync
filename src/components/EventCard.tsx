@@ -4,16 +4,21 @@ import { useState } from "react";
 import { format } from "date-fns";
 import {
   MapPin, Clock, Trash2, User, AlertCircle, Navigation,
-  Pencil, X, Check, Loader2,
+  Pencil, X, Check, Loader2, CheckCircle, HelpCircle, XCircle,
+  MessageSquare,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase-browser";
 import {
   type CalendarEvent, type EventCategory, type Child,
   CATEGORY_LABELS, CATEGORY_COLORS,
 } from "@/lib/types";
 
+type RsvpStatus = "going" | "maybe" | "not_going";
+
 interface EventCardProps {
   event: CalendarEvent;
   allChildren?: Child[];
+  userId?: string;
   onDelete?: (eventId: string) => Promise<void>;
   onUpdate?: (eventId: string, updates: Record<string, unknown>, childIds?: string[]) => Promise<void>;
 }
@@ -22,7 +27,8 @@ function getDirectionsUrl(location: string): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location)}`;
 }
 
-export default function EventCard({ event, allChildren, onDelete, onUpdate }: EventCardProps) {
+export default function EventCard({ event, allChildren, userId, onDelete, onUpdate }: EventCardProps) {
+  const supabase = createClient();
   const startDate = new Date(event.start_time);
   const endDate = event.end_time ? new Date(event.end_time) : null;
   const categoryColor = CATEGORY_COLORS[event.category] || "#6b7280";
@@ -33,6 +39,55 @@ export default function EventCard({ event, allChildren, onDelete, onUpdate }: Ev
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // RSVP state — default to "going"
+  const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>("going");
+  const [rsvpNote, setRsvpNote] = useState("");
+  const [rsvpLoaded, setRsvpLoaded] = useState(false);
+  const [showRsvpNote, setShowRsvpNote] = useState(false);
+
+  // Load RSVP on mount
+  useState(() => {
+    if (!userId) return;
+    supabase
+      .from("event_rsvps")
+      .select("status, note")
+      .eq("event_id", event.id)
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setRsvpStatus(data.status as RsvpStatus);
+          setRsvpNote(data.note || "");
+        }
+        setRsvpLoaded(true);
+      });
+  });
+
+  async function handleRsvpChange(newStatus: RsvpStatus) {
+    if (!userId) return;
+    setRsvpStatus(newStatus);
+
+    await supabase.from("event_rsvps").upsert({
+      event_id: event.id,
+      user_id: userId,
+      status: newStatus,
+      note: rsvpNote || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "event_id,user_id" });
+  }
+
+  async function handleRsvpNoteSave() {
+    if (!userId) return;
+    setShowRsvpNote(false);
+    await supabase.from("event_rsvps").upsert({
+      event_id: event.id,
+      user_id: userId,
+      status: rsvpStatus,
+      note: rsvpNote || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "event_id,user_id" });
+  }
 
   // Edit fields
   const [editTitle, setEditTitle] = useState(event.title);
@@ -311,6 +366,72 @@ export default function EventCard({ event, allChildren, onDelete, onUpdate }: Ev
                   <span className="truncate">{event.location}</span>
                   <Navigation className="w-3 h-3 shrink-0" />
                 </a>
+              </div>
+            )}
+
+            {/* RSVP / Availability */}
+            {userId && rsvpLoaded && (
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handleRsvpChange("going")}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                      rsvpStatus === "going"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                    }`}
+                  >
+                    <CheckCircle className="w-3 h-3" /> Going
+                  </button>
+                  <button
+                    onClick={() => handleRsvpChange("maybe")}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                      rsvpStatus === "maybe"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                    }`}
+                  >
+                    <HelpCircle className="w-3 h-3" /> Maybe
+                  </button>
+                  <button
+                    onClick={() => handleRsvpChange("not_going")}
+                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                      rsvpStatus === "not_going"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                    }`}
+                  >
+                    <XCircle className="w-3 h-3" /> Can&apos;t go
+                  </button>
+                  <button
+                    onClick={() => setShowRsvpNote(!showRsvpNote)}
+                    className={`p-1 rounded-full transition-colors ${
+                      rsvpNote ? "text-[var(--color-primary)]" : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {showRsvpNote && (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={rsvpNote}
+                      onChange={(e) => setRsvpNote(e.target.value)}
+                      placeholder="Add a note (e.g. 'Can you drive?')"
+                      className="flex-1 px-3 py-1.5 border border-[var(--color-border)] rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                    />
+                    <button
+                      onClick={handleRsvpNoteSave}
+                      className="text-xs px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg font-medium"
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
+                {rsvpNote && !showRsvpNote && (
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1 italic">&quot;{rsvpNote}&quot;</p>
+                )}
               </div>
             )}
           </>
