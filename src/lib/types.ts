@@ -120,6 +120,15 @@ export function estimateDriveFromHome(homeAddress: string, eventLocation: string
     if (venue.includes("owen bell")) return 15;
   }
 
+  // Check for far-away locations by state
+  if (venue.includes(", ri ") || venue.includes("rhode island")) return home.includes("woodstock") ? 80 : 90;
+  if (venue.includes("boston") || venue.includes("cambridge")) return home.includes("woodstock") ? 85 : 75;
+  if (venue.includes("hartford")) return home.includes("woodstock") ? 45 : 55;
+  if (venue.includes("springfield")) return home.includes("woodstock") ? 55 : 45;
+  if (venue.includes("worcester")) return home.includes("woodstock") ? 40 : 30;
+  if (venue.includes("providence")) return home.includes("woodstock") ? 70 : 80;
+  if (venue.includes("bristol")) return home.includes("woodstock") ? 80 : 90;
+
   // Default: unknown distance
   return 30;
 }

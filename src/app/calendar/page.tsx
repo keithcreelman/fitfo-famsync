@@ -36,6 +36,7 @@ export default function CalendarPage() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filterChildId, setFilterChildId] = useState<string | "all">("all");
+  const [gamesOnly, setGamesOnly] = useState(false);
 
   const loadEvents = useCallback(async () => {
     const {
@@ -107,10 +108,13 @@ export default function CalendarPage() {
     end: calendarEnd,
   });
 
-  // Apply child filter
-  const filteredEvents = filterChildId === "all"
+  // Apply filters
+  let filteredEvents = filterChildId === "all"
     ? events
     : events.filter((e) => e.children?.some((c) => c.id === filterChildId));
+  if (gamesOnly) {
+    filteredEvents = filteredEvents.filter((e) => isGameEvent(e.title));
+  }
 
   // Events for selected date — games first, then by time
   const selectedEvents = filteredEvents
@@ -347,6 +351,17 @@ export default function CalendarPage() {
                 {child.nickname || child.name}
               </button>
             ))}
+            <span className="text-gray-200">|</span>
+            <button
+              onClick={() => setGamesOnly(!gamesOnly)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                gamesOnly
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-white border border-[var(--color-border)] text-[var(--color-text-secondary)]"
+              }`}
+            >
+              Games Only
+            </button>
           </div>
         )}
 

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase-browser";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Navigation } from "lucide-react";
 import { CATEGORY_COLORS, isGameEvent } from "@/lib/types";
-import EventMedia from "@/components/EventMedia";
+// EventMedia removed from MVP
 
 interface SpectatorEvent {
   id: string;
@@ -31,6 +31,7 @@ export default function SpectatorPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [gamesOnly, setGamesOnly] = useState(false);
 
   const loadData = useCallback(async () => {
     const { data: household } = await supabase
@@ -73,7 +74,8 @@ export default function SpectatorPage() {
   if (error) return <div className="min-h-screen flex items-center justify-center px-6"><p className="text-red-600 font-semibold">{error}</p></div>;
 
   const calendarDays = eachDayOfInterval({ start: startOfWeek(startOfMonth(currentMonth)), end: endOfWeek(endOfMonth(currentMonth)) });
-  const selectedEvents = events.filter((e) => isSameDay(new Date(e.start_time), selectedDate)).sort((a, b) => {
+  const displayEvents = gamesOnly ? events.filter((e) => isGameEvent(e.title)) : events;
+  const selectedEvents = displayEvents.filter((e) => isSameDay(new Date(e.start_time), selectedDate)).sort((a, b) => {
     if (isGameEvent(a.title) !== isGameEvent(b.title)) return isGameEvent(a.title) ? -1 : 1;
     return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
   });
@@ -105,7 +107,7 @@ export default function SpectatorPage() {
           </div>
           <div className="grid grid-cols-7 gap-y-0.5">
             {calendarDays.map((day) => {
-              const dayEvents = events.filter((e) => isSameDay(new Date(e.start_time), day));
+              const dayEvents = displayEvents.filter((e) => isSameDay(new Date(e.start_time), day));
               const isSelected = isSameDay(day, selectedDate);
               return (
                 <button key={day.toISOString()} onClick={() => setSelectedDate(day)}
@@ -122,6 +124,18 @@ export default function SpectatorPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Filter */}
+        <div className="px-4 pt-2 flex gap-2">
+          <button
+            onClick={() => setGamesOnly(false)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium ${!gamesOnly ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-500"}`}
+          >All</button>
+          <button
+            onClick={() => setGamesOnly(true)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium ${gamesOnly ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}
+          >Games Only</button>
         </div>
 
         {/* Events list */}
@@ -175,7 +189,6 @@ export default function SpectatorPage() {
                           ))}
                         </div>
                       )}
-                      <EventMedia eventId={ev.id} readOnly />
                     </div>
                   </div>
                 );
