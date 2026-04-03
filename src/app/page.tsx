@@ -80,7 +80,7 @@ export default function HomePage() {
     const weekOut = addDays(now, 7);
     const { data: eventsData } = await supabase
       .from("events")
-      .select("*, event_children(children(id, name))")
+      .select("*, event_children(children(id, name, color))")
       .eq("household_id", membership.household_id)
       .gte("start_time", now.toISOString())
       .lte("start_time", weekOut.toISOString())
