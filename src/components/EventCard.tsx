@@ -44,9 +44,7 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
 
   // RSVP state — default to "going"
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>("going");
-  const [rsvpNote, setRsvpNote] = useState("");
   const [rsvpLoaded, setRsvpLoaded] = useState(false);
-  const [showRsvpNote, setShowRsvpNote] = useState(false);
 
   // Comments
   const [comments, setComments] = useState<{ id: string; user_id: string; body: string; created_at: string; profile?: { display_name: string } }[]>([]);
@@ -66,7 +64,6 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
       .then(({ data }) => {
         if (data) {
           setRsvpStatus(data.status as RsvpStatus);
-          setRsvpNote(data.note || "");
         }
         setRsvpLoaded(true);
       });
@@ -80,7 +77,6 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
       event_id: event.id,
       user_id: userId,
       status: newStatus,
-      note: rsvpNote || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "event_id,user_id" });
   }
@@ -138,17 +134,6 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
     setShowComments(!showComments);
   }
 
-  async function handleRsvpNoteSave() {
-    if (!userId) return;
-    setShowRsvpNote(false);
-    await supabase.from("event_rsvps").upsert({
-      event_id: event.id,
-      user_id: userId,
-      status: rsvpStatus,
-      note: rsvpNote || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "event_id,user_id" });
-  }
 
   // Edit fields
   const [editTitle, setEditTitle] = useState(event.title);
@@ -471,84 +456,58 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
               );
             })()}
 
-            {/* RSVP / Availability */}
+            {/* RSVP + Comments */}
             {userId && rsvpLoaded && (
-              <div className="mt-2 pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handleRsvpChange("going")}
-                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
-                      rsvpStatus === "going"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                    }`}
-                  >
-                    <CheckCircle className="w-3 h-3" /> Going
-                  </button>
-                  <button
-                    onClick={() => handleRsvpChange("maybe")}
-                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
-                      rsvpStatus === "maybe"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                    }`}
-                  >
-                    <HelpCircle className="w-3 h-3" /> Maybe
-                  </button>
-                  <button
-                    onClick={() => handleRsvpChange("not_going")}
-                    className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
-                      rsvpStatus === "not_going"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-50 text-gray-400 hover:bg-gray-100"
-                    }`}
-                  >
-                    <XCircle className="w-3 h-3" /> Can&apos;t go
-                  </button>
-                  <button
-                    onClick={() => setShowRsvpNote(!showRsvpNote)}
-                    className={`p-1 rounded-full transition-colors ${
-                      rsvpNote ? "text-[var(--color-primary)]" : "text-gray-400 hover:text-gray-600"
-                    }`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                {showRsvpNote && (
-                  <div className="flex gap-2 mt-2">
-                    <input
-                      type="text"
-                      value={rsvpNote}
-                      onChange={(e) => setRsvpNote(e.target.value)}
-                      placeholder="Add a note (e.g. 'Can you drive?')"
-                      className="flex-1 px-3 py-1.5 border border-[var(--color-border)] rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                    />
-                    <button
-                      onClick={handleRsvpNoteSave}
-                      className="text-xs px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg font-medium"
-                    >
-                      Save
-                    </button>
-                  </div>
-                )}
-                {rsvpNote && !showRsvpNote && (
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1 italic">&quot;{rsvpNote}&quot;</p>
-                )}
+              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => handleRsvpChange("going")}
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    rsvpStatus === "going"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                  }`}
+                >
+                  <CheckCircle className="w-3 h-3" /> Going
+                </button>
+                <button
+                  onClick={() => handleRsvpChange("maybe")}
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    rsvpStatus === "maybe"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                  }`}
+                >
+                  <HelpCircle className="w-3 h-3" /> Maybe
+                </button>
+                <button
+                  onClick={() => handleRsvpChange("not_going")}
+                  className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    rsvpStatus === "not_going"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                  }`}
+                >
+                  <XCircle className="w-3 h-3" /> Can&apos;t go
+                </button>
+                <span className="text-gray-200">|</span>
+                <button
+                  onClick={toggleComments}
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-colors ${
+                    commentCount > 0
+                      ? "text-[var(--color-primary)] font-medium"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <MessageSquare className="w-3 h-3" />
+                  {commentCount > 0 ? commentCount : ""}
+                </button>
               </div>
             )}
 
-            {/* Comments */}
-            {userId && (
-              <div className="mt-1.5">
-                <button
-                  onClick={toggleComments}
-                  className="flex items-center gap-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
-                >
-                  <MessageSquare className="w-3 h-3" />
-                  {commentCount > 0 ? `${commentCount} comment${commentCount > 1 ? "s" : ""}` : "Add comment"}
-                </button>
-
-                {showComments && (
+            {/* Comment thread */}
+            {userId && showComments && (
+              <div className="mt-2">
+                {(
                   <div className="mt-2 space-y-2">
                     {/* Thread */}
                     {comments.map((c) => (
@@ -586,7 +545,6 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                         Post
                       </button>
                     </div>
-                  </div>
                 )}
               </div>
             )}
