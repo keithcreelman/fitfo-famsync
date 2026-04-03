@@ -18,6 +18,7 @@ interface SpectatorEvent {
   all_day: boolean;
   status: string;
   children: { name: string; color: string | null }[];
+  notGoing: boolean; // true if any parent marked "can't go"
 }
 
 export default function SpectatorPage() {
@@ -60,10 +61,18 @@ export default function SpectatorPage() {
       .lte("start_time", monthEnd.toISOString())
       .order("start_time");
 
+    // Check which events have "not_going" RSVPs
+    const eventIds = (eventsData || []).map((e: any) => e.id);
+    const { data: notGoingRsvps } = eventIds.length > 0
+      ? await supabase.from("event_rsvps").select("event_id").eq("status", "not_going").in("event_id", eventIds)
+      : { data: [] };
+    const notGoingSet = new Set((notGoingRsvps || []).map((r: any) => r.event_id));
+
     setEvents((eventsData || []).map((e: any) => ({
       ...e,
       children: e.event_children?.map((ec: any) => ec.children).filter(Boolean) || [],
       status: e.status || "active",
+      notGoing: notGoingSet.has(e.id),
     })));
     setLoading(false);
   }, [supabase, code, currentMonth]);
@@ -183,8 +192,12 @@ export default function SpectatorPage() {
                       {ev.children.length > 0 && (
                         <div className="flex items-center gap-2 mt-1.5">
                           {ev.children.map((c, i) => (
-                            <span key={i} className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">
-                              {c.name}: Playing
+                            <span key={i} className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                              ev.notGoing || cancelled
+                                ? "bg-red-50 text-red-500"
+                                : "bg-green-50 text-green-600"
+                            }`}>
+                              {c.name}: {ev.notGoing || cancelled ? "Not attending" : "Playing"}
                             </span>
                           ))}
                         </div>
