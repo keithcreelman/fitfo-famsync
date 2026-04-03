@@ -344,7 +344,7 @@ export default function CalendarPage() {
           </h2>
 
           {/* Conflict warnings */}
-          <ConflictAlert events={selectedEvents} />
+          <ConflictAlert events={selectedEvents} userId={userId} />
 
           {selectedEvents.length === 0 ? (
             <div className="text-center py-8 text-[var(--color-text-secondary)]">
