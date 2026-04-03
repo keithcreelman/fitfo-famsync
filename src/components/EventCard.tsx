@@ -506,11 +506,9 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
 
             {/* Comment thread */}
             {userId && showComments && (
-              <div className="mt-2">
-                {(
-                  <div className="mt-2 space-y-2">
-                    {/* Thread */}
-                    {comments.map((c) => (
+              <div className="mt-2 space-y-2">
+                {/* Thread */}
+                {comments.map((c) => (
                       <div key={c.id} className="flex gap-2">
                         <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[8px] font-bold text-gray-500 shrink-0 mt-0.5">
                           {c.profile?.display_name?.charAt(0) || "?"}
@@ -544,8 +542,7 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                       >
                         Post
                       </button>
-                    </div>
-                )}
+                </div>
               </div>
             )}
           </>
