@@ -130,36 +130,47 @@ export default function SettingsPage() {
               <Home className="w-5 h-5 text-[var(--color-text-secondary)]" />
               <span className="font-medium">{household?.name}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {children.map((child) => {
                 const takenColors = children.filter((c) => c.id !== child.id).map((c) => c.color);
                 return (
-                  <div key={child.id} className="flex items-center gap-3">
-                    <div
-                      className="w-4 h-4 rounded-full shrink-0 border border-gray-200"
-                      style={{ backgroundColor: child.color || "#6b7280" }}
-                    />
-                    <span className="text-sm font-medium flex-1">{child.nickname || child.name}</span>
-                    <select
-                      value={child.color || ""}
-                      onChange={async (e) => {
-                        const newColor = e.target.value;
-                        await supabase.from("children").update({ color: newColor }).eq("id", child.id);
-                        setChildren(children.map((c) => c.id === child.id ? { ...c, color: newColor } : c));
-                      }}
-                      className="px-2 py-1 border border-[var(--color-border)] rounded-lg text-xs bg-white"
-                    >
-                      <option value="">No color</option>
-                      {CHILD_COLOR_OPTIONS.map((opt) => (
-                        <option
-                          key={opt.value}
-                          value={opt.value}
-                          disabled={takenColors.includes(opt.value)}
-                        >
-                          {opt.label}{takenColors.includes(opt.value) ? " (taken)" : ""}
-                        </option>
-                      ))}
-                    </select>
+                  <div key={child.id}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div
+                        className="w-5 h-5 rounded-full shrink-0 border-2 border-white shadow-sm"
+                        style={{ backgroundColor: child.color || "#6b7280" }}
+                      />
+                      <span className="text-sm font-semibold">{child.nickname || child.name}</span>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {CHILD_COLOR_OPTIONS.map((opt) => {
+                        const taken = takenColors.includes(opt.value);
+                        const selected = child.color === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            disabled={taken}
+                            onClick={async () => {
+                              const newColor = selected ? null : opt.value;
+                              await supabase.from("children").update({ color: newColor }).eq("id", child.id);
+                              setChildren(children.map((c) => c.id === child.id ? { ...c, color: newColor } : c));
+                            }}
+                            className={`w-8 h-8 rounded-full transition-all ${
+                              selected
+                                ? "ring-2 ring-offset-2 scale-110"
+                                : taken
+                                  ? "opacity-20 cursor-not-allowed"
+                                  : "hover:scale-110 hover:ring-2 hover:ring-offset-1 hover:ring-gray-300"
+                            }`}
+                            style={{
+                              backgroundColor: opt.value,
+                              ringColor: selected ? opt.value : undefined,
+                            }}
+                            title={`${opt.label}${taken ? " (taken)" : ""}`}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
