@@ -453,14 +453,14 @@ function ImportReviewContent() {
                 {importType === "csv"
                   ? "Upload a CSV or Excel file"
                   : importType === "screenshot"
-                    ? "Upload a screenshot or photo"
+                    ? "Upload a screenshot, photo, or PDF"
                     : "Upload an .ics file"}
               </p>
               <p className="text-sm text-[var(--color-text-secondary)] mt-1">
                 {importType === "csv"
                   ? "From TeamSnap, GameChanger, school systems, or any spreadsheet"
                   : importType === "screenshot"
-                    ? "Take a photo of a sports schedule, school flyer, etc."
+                    ? "Sports schedule, school calendar PDF, flyer, etc."
                     : "From a calendar invite or exported events"}
               </p>
             </div>
@@ -470,7 +470,7 @@ function ImportReviewContent() {
                 importType === "csv"
                   ? ".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   : importType === "screenshot"
-                    ? "image/*"
+                    ? "image/*,.pdf,application/pdf"
                     : ".ics,text/calendar"
               }
               multiple={importType === "screenshot"}

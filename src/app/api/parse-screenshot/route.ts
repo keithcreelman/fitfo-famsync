@@ -29,30 +29,41 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
 
-    // Detect media type, default to jpeg
-    let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
-    if (file.type === "image/png") mediaType = "image/png";
-    else if (file.type === "image/gif") mediaType = "image/gif";
-    else if (file.type === "image/webp") mediaType = "image/webp";
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
     const today = new Date().toISOString().split("T")[0];
     const currentYear = new Date().getFullYear();
 
+    // Build content based on file type
+    const documentContent: Anthropic.Messages.ContentBlockParam = isPdf
+      ? {
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: base64,
+          },
+        } as any
+      : {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: (file.type === "image/png" ? "image/png"
+              : file.type === "image/gif" ? "image/gif"
+              : file.type === "image/webp" ? "image/webp"
+              : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+            data: base64,
+          },
+        };
+
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2000,
+      max_tokens: 4000,
       messages: [
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: base64,
-              },
-            },
+            documentContent,
             {
               type: "text",
               text: `Extract ALL event details from this image. Today is ${today}. The current year is ${currentYear}.
