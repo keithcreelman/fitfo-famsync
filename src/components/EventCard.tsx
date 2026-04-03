@@ -18,6 +18,9 @@ export default function EventCard({ event, onDelete }: EventCardProps) {
   const startDate = new Date(event.start_time);
   const endDate = event.end_time ? new Date(event.end_time) : null;
   const categoryColor = CATEGORY_COLORS[event.category] || "#6b7280";
+  // Use first child's color for the bar, fallback to category color
+  const childColor = event.children?.[0]?.color || null;
+  const barColor = childColor || categoryColor;
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -30,10 +33,10 @@ export default function EventCard({ event, onDelete }: EventCardProps) {
 
   return (
     <div className="bg-white rounded-xl border border-[var(--color-border)] p-4 flex gap-3">
-      {/* Category color bar */}
+      {/* Color bar — child color if assigned, otherwise category */}
       <div
-        className="w-1 rounded-full shrink-0"
-        style={{ backgroundColor: categoryColor }}
+        className="w-1.5 rounded-full shrink-0"
+        style={{ backgroundColor: barColor }}
       />
 
       <div className="flex-1 min-w-0">
@@ -84,12 +87,18 @@ export default function EventCard({ event, onDelete }: EventCardProps) {
             {/* WHO — child name(s) */}
             <div className="flex items-center gap-1.5 mt-1.5">
               {event.children && event.children.length > 0 ? (
-                <>
-                  <User className="w-3.5 h-3.5 text-[var(--color-primary)] shrink-0" />
-                  <span className="text-sm font-medium text-[var(--color-primary)]">
-                    {event.children.map((c) => c.nickname || c.name).join(", ")}
-                  </span>
-                </>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <User className="w-3.5 h-3.5 shrink-0" style={{ color: childColor || "var(--color-primary)" }} />
+                  {event.children.map((c, i) => (
+                    <span
+                      key={c.id}
+                      className="text-sm font-medium"
+                      style={{ color: c.color || "var(--color-primary)" }}
+                    >
+                      {c.nickname || c.name}{i < event.children!.length - 1 ? "," : ""}
+                    </span>
+                  ))}
+                </div>
               ) : (
                 <>
                   <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />

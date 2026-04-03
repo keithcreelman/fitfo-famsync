@@ -235,17 +235,18 @@ export default function CalendarPage() {
                   {/* Event dots */}
                   {dayEvents.length > 0 && (
                     <div className="flex gap-0.5 mt-1">
-                      {dayEvents.slice(0, 3).map((ev) => (
+                      {dayEvents.slice(0, 3).map((ev) => {
+                        const dotColor = ev.children?.[0]?.color || CATEGORY_COLORS[ev.category] || "#6b7280";
+                        return (
                         <div
                           key={ev.id}
                           className="w-1.5 h-1.5 rounded-full"
                           style={{
-                            backgroundColor: isSelected
-                              ? "white"
-                              : CATEGORY_COLORS[ev.category] || "#6b7280",
+                            backgroundColor: isSelected ? "white" : dotColor,
                           }}
                         />
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </button>

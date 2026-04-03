@@ -61,7 +61,20 @@ export interface Child {
   nickname: string | null;
   birth_date: string | null;
   grade: string | null;
+  color: string | null;
 }
+
+// Preset child colors — good, distinct, accessible
+export const CHILD_COLOR_OPTIONS = [
+  { value: "#EC4899", label: "Pink" },
+  { value: "#22C55E", label: "Green" },
+  { value: "#3B82F6", label: "Blue" },
+  { value: "#F59E0B", label: "Amber" },
+  { value: "#8B5CF6", label: "Purple" },
+  { value: "#EF4444", label: "Red" },
+  { value: "#06B6D4", label: "Cyan" },
+  { value: "#F97316", label: "Orange" },
+];
 
 export interface CalendarEvent {
   id: string;

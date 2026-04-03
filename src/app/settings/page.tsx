@@ -15,6 +15,7 @@ import {
 import BottomNav from "@/components/BottomNav";
 import CalendarPrivacyPopup from "@/components/CalendarPrivacyPopup";
 import type { Profile, Household, Child } from "@/lib/types";
+import { CHILD_COLOR_OPTIONS } from "@/lib/types";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -126,12 +127,39 @@ export default function SettingsPage() {
               <Home className="w-5 h-5 text-[var(--color-text-secondary)]" />
               <span className="font-medium">{household?.name}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <Users className="w-5 h-5 text-[var(--color-text-secondary)]" />
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                {children.length} child{children.length !== 1 ? "ren" : ""}:{" "}
-                {children.map((c) => c.nickname || c.name).join(", ")}
-              </span>
+            <div className="space-y-3">
+              {children.map((child) => {
+                const takenColors = children.filter((c) => c.id !== child.id).map((c) => c.color);
+                return (
+                  <div key={child.id} className="flex items-center gap-3">
+                    <div
+                      className="w-4 h-4 rounded-full shrink-0 border border-gray-200"
+                      style={{ backgroundColor: child.color || "#6b7280" }}
+                    />
+                    <span className="text-sm font-medium flex-1">{child.nickname || child.name}</span>
+                    <select
+                      value={child.color || ""}
+                      onChange={async (e) => {
+                        const newColor = e.target.value;
+                        await supabase.from("children").update({ color: newColor }).eq("id", child.id);
+                        setChildren(children.map((c) => c.id === child.id ? { ...c, color: newColor } : c));
+                      }}
+                      className="px-2 py-1 border border-[var(--color-border)] rounded-lg text-xs bg-white"
+                    >
+                      <option value="">No color</option>
+                      {CHILD_COLOR_OPTIONS.map((opt) => (
+                        <option
+                          key={opt.value}
+                          value={opt.value}
+                          disabled={takenColors.includes(opt.value)}
+                        >
+                          {opt.label}{takenColors.includes(opt.value) ? " (taken)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
