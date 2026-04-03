@@ -18,6 +18,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import QuickAdd from "@/components/QuickAdd";
 import EventCard from "@/components/EventCard";
+import CalendarFeeds from "@/components/CalendarFeeds";
 import { type CalendarEvent, type Child, CATEGORY_COLORS } from "@/lib/types";
 
 export default function CalendarPage() {
@@ -38,12 +39,13 @@ export default function CalendarPage() {
     if (!user) return;
     setUserId(user.id);
 
-    const { data: membership } = await supabase
+    const { data: memberships } = await supabase
       .from("household_members")
       .select("household_id")
       .eq("user_id", user.id)
       .eq("invite_status", "accepted")
-      .single();
+      .limit(1);
+    const membership = memberships?.[0] || null;
 
     if (!membership) return;
     setHouseholdId(membership.household_id);
@@ -177,6 +179,18 @@ export default function CalendarPage() {
       </header>
 
       <main className="max-w-lg mx-auto">
+        {/* Calendar Feeds */}
+        {householdId && userId && (
+          <div className="px-4 pt-3">
+            <CalendarFeeds
+              householdId={householdId}
+              userId={userId}
+              children={children}
+              onSyncComplete={() => loadEvents()}
+            />
+          </div>
+        )}
+
         {/* Calendar grid */}
         <div className="bg-white px-2 py-3">
           {/* Day headers */}

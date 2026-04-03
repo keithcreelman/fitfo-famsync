@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { MapPin, Clock, Trash2, X } from "lucide-react";
+import { MapPin, Clock, Trash2, User, AlertCircle, Navigation } from "lucide-react";
 import { type CalendarEvent, CATEGORY_LABELS, CATEGORY_COLORS } from "@/lib/types";
 
 interface EventCardProps {
@@ -10,8 +10,13 @@ interface EventCardProps {
   onDelete?: (eventId: string) => Promise<void>;
 }
 
+function getDirectionsUrl(location: string): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location)}`;
+}
+
 export default function EventCard({ event, onDelete }: EventCardProps) {
   const startDate = new Date(event.start_time);
+  const endDate = event.end_time ? new Date(event.end_time) : null;
   const categoryColor = CATEGORY_COLORS[event.category] || "#6b7280";
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -76,29 +81,49 @@ export default function EventCard({ event, onDelete }: EventCardProps) {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-3 mt-1.5 text-sm text-[var(--color-text-secondary)]">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {event.all_day ? "All day" : format(startDate, "h:mm a")}
-              </span>
-              {event.location && (
-                <span className="flex items-center gap-1 truncate">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  {event.location}
-                </span>
+            {/* WHO — child name(s) */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              {event.children && event.children.length > 0 ? (
+                <>
+                  <User className="w-3.5 h-3.5 text-[var(--color-primary)] shrink-0" />
+                  <span className="text-sm font-medium text-[var(--color-primary)]">
+                    {event.children.map((c) => c.nickname || c.name).join(", ")}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="text-xs text-amber-500">No child assigned</span>
+                </>
               )}
             </div>
 
-            {event.children && event.children.length > 0 && (
-              <div className="flex gap-1.5 mt-2">
-                {event.children.map((child) => (
-                  <span
-                    key={child.id}
-                    className="text-xs bg-gray-100 text-[var(--color-text-secondary)] px-2 py-0.5 rounded-full"
-                  >
-                    {child.nickname || child.name}
-                  </span>
-                ))}
+            {/* WHEN — time */}
+            <div className="flex items-center gap-1 mt-1 text-sm text-[var(--color-text-secondary)]">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {event.all_day
+                  ? "All day"
+                  : endDate
+                    ? `${format(startDate, "h:mm a")} - ${format(endDate, "h:mm a")}`
+                    : format(startDate, "h:mm a")}
+              </span>
+            </div>
+
+            {/* WHERE — location with directions */}
+            {event.location && (
+              <div className="flex items-center gap-1 mt-1 text-sm">
+                <MapPin className="w-3.5 h-3.5 text-[var(--color-text-secondary)] shrink-0" />
+                <a
+                  href={getDirectionsUrl(event.location)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--color-primary)] hover:underline truncate flex items-center gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="truncate">{event.location}</span>
+                  <Navigation className="w-3 h-3 shrink-0" />
+                </a>
               </div>
             )}
           </>
