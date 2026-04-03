@@ -1,0 +1,18 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/chat/route": "/api/chat",
+  "/api/digest/route": "/api/digest",
+  "/api/parse-nlp/route": "/api/parse-nlp",
+  "/api/parse-screenshot/route": "/api/parse-screenshot",
+  "/api/sync-ics/route": "/api/sync-ics",
+  "/auth/callback/route": "/auth/callback",
+  "/calendar/page": "/calendar",
+  "/import/review/page": "/import/review",
+  "/invite/page": "/invite",
+  "/login/page": "/login",
+  "/meeting/page": "/meeting",
+  "/onboarding/page": "/onboarding",
+  "/page": "/",
+  "/settings/page": "/settings"
+}

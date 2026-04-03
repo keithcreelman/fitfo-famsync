@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     const childrenList = (children || []).map((c: any) => c.name).join(", ");
 
-    const systemPrompt = `You are CreelSync Assistant, the AI helper for a co-parenting family coordination app called FamSync (this family's instance is called CreelSync).
+    const systemPrompt = `You are CreelSync Assistant, the AI helper for a co-parenting family coordination app called CreelSync (this family's instance is called CreelSync).
 
 FAMILY CONTEXT:
 - Children: ${childrenList}

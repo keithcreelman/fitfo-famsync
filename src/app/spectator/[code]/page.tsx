@@ -216,7 +216,7 @@ export default function SpectatorPage() {
         </div>
       </main>
 
-      <footer className="text-center py-4 text-[10px] text-gray-300">Powered by FamSync</footer>
+      <footer className="text-center py-4 text-[10px] text-gray-300">Powered by CreelSync</footer>
     </div>
   );
 }

@@ -198,7 +198,7 @@ export default function HomePage() {
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[var(--color-primary)]">
-              {household?.name || "FamSync"}
+              {household?.name || "CreelSync"}
             </h1>
             <p className="text-sm text-[var(--color-text-secondary)]">
               {profile?.display_name
@@ -207,7 +207,7 @@ export default function HomePage() {
             </p>
           </div>
           <span className="text-[10px] text-[var(--color-text-secondary)] bg-gray-100 px-2 py-1 rounded-full">
-            by FamSync
+            by CreelSync
           </span>
         </div>
       </header>

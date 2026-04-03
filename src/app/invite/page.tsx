@@ -221,7 +221,7 @@ function InviteContent() {
       <div className="min-h-screen flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold">Join a FamSync</h1>
+            <h1 className="text-2xl font-bold">Join a CreelSync</h1>
             <p className="text-[var(--color-text-secondary)] mt-1">
               Enter the invite code you received.
             </p>

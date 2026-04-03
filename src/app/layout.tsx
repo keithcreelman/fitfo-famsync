@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FamSync — Family Coordination",
+  title: "CreelSync — Family Coordination",
   description: "One place for family schedules, appointments, and co-parenting coordination.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "FamSync",
+    title: "CreelSync",
   },
 };
 

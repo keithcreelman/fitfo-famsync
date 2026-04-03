@@ -1,6 +1,6 @@
 {
-  "name": "FamSync — Family Coordination",
-  "short_name": "FamSync",
+  "name": "CreelSync — Family Coordination",
+  "short_name": "CreelSync",
   "description": "One place for family schedules and co-parenting coordination.",
   "start_url": "/",
   "display": "standalone",

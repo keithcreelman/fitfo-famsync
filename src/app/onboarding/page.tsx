@@ -290,7 +290,7 @@ export default function OnboardingPage() {
         {step === "profile" && (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-2xl font-bold">Welcome to FamSync</h1>
+              <h1 className="text-2xl font-bold">Welcome to CreelSync</h1>
               <p className="text-[var(--color-text-secondary)] mt-1">
                 Let&apos;s get you set up in about 2 minutes.
               </p>
@@ -344,7 +344,7 @@ export default function OnboardingPage() {
         {step === "household" && (
           <div className="space-y-6">
             <div className="text-center">
-              <h1 className="text-2xl font-bold">Name your FamSync</h1>
+              <h1 className="text-2xl font-bold">Name your CreelSync</h1>
               <p className="text-[var(--color-text-secondary)] mt-1">
                 Every family gets their own. What&apos;s yours called?
               </p>
@@ -352,7 +352,7 @@ export default function OnboardingPage() {
 
             <div>
               <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                Your FamSync name *
+                Your CreelSync name *
               </label>
               <input
                 type="text"
@@ -373,7 +373,7 @@ export default function OnboardingPage() {
                 <p className="text-2xl font-bold text-[var(--color-primary)]">
                   {householdName.trim()}
                 </p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-1">Powered by FamSync</p>
+                <p className="text-xs text-[var(--color-text-secondary)] mt-1">Powered by CreelSync</p>
               </div>
             )}
 

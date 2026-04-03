@@ -30,7 +30,7 @@ export default function PrivacyDisclaimer({
           </h1>
         )}
         <p className="text-center text-[10px] text-[var(--color-text-secondary)] uppercase tracking-widest mb-4">
-          Powered by FamSync
+          Powered by CreelSync
         </p>
 
         {/* Title */}
