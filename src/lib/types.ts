@@ -114,6 +114,10 @@ export function estimateDriveFromHome(homeAddress: string, eventLocation: string
     if (venue.includes("ashburnham")) return 65;
     if (venue.includes("putnam")) return 15;
     if (venue.includes("pomfret") || venue.includes("thompson")) return 15;
+    if (venue.includes("dayville") || venue.includes("killingly")) return 15;
+    if (venue.includes("danielson") || venue.includes("brooklyn")) return 15;
+    if (venue.includes("plainfield") || venue.includes("canterbury")) return 20;
+    if (venue.includes("owen bell")) return 15;
   }
 
   // Default: unknown distance
@@ -143,8 +147,11 @@ export interface Child {
 }
 
 // Detect if event is a game (vs practice/training)
-export function isGameEvent(title: string): boolean {
+export function isGameEvent(title: string, category?: string): boolean {
   const lower = title.toLowerCase();
+  const isPractice = lower.includes("practice") || lower.includes("training") || lower.includes("clinic");
+  if (isPractice) return false;
+
   return (
     lower.includes(" vs ") ||
     lower.includes(" vs.") ||
@@ -154,8 +161,16 @@ export function isGameEvent(title: string): boolean {
     lower.includes("tournament") ||
     lower.includes("playoff") ||
     lower.includes("championship") ||
-    lower.includes("scrimmage")
+    lower.includes("scrimmage") ||
+    lower.includes("jamboree") ||
+    lower.includes("cup")
   );
+}
+
+// Get arrival buffer in minutes (how early to arrive)
+// Games = 40 min, practices = 10 min
+export function getArrivalBuffer(title: string, category?: string): number {
+  return isGameEvent(title, category) ? 40 : 10;
 }
 
 // Preset child colors — good, distinct, accessible

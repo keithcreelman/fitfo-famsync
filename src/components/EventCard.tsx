@@ -10,7 +10,7 @@ import {
 import { createClient } from "@/lib/supabase-browser";
 import {
   type CalendarEvent, type EventCategory, type Child,
-  CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent,
+  CATEGORY_LABELS, CATEGORY_COLORS, isGameEvent, getArrivalBuffer,
   PARENT_HOMES, estimateDriveFromHome,
 } from "@/lib/types";
 import { getResponsibleParent, getCustodyName } from "@/lib/custody";
@@ -442,7 +442,7 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
               const baseDrive = event.location ? estimateDriveFromHome(parentHome.address, event.location) : null;
               const driveMin = baseDrive !== null ? Math.round(baseDrive * (isRushHour ? 1.3 : 1)) : null;
 
-              const arriveEarly = isGame ? 40 : 10;
+              const arriveEarly = getArrivalBuffer(event.title, event.category);
               const departBy = driveMin !== null && !event.all_day
                 ? new Date(startDate.getTime() - (driveMin + arriveEarly) * 60000)
                 : null;
