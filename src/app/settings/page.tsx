@@ -157,14 +157,17 @@ export default function SettingsPage() {
                             }}
                             className={`w-8 h-8 rounded-full transition-all ${
                               selected
-                                ? "ring-2 ring-offset-2 scale-110"
+                                ? "scale-110"
                                 : taken
                                   ? "opacity-20 cursor-not-allowed"
                                   : "hover:scale-110 hover:ring-2 hover:ring-offset-1 hover:ring-gray-300"
                             }`}
                             style={{
                               backgroundColor: opt.value,
-                              ringColor: selected ? opt.value : undefined,
+                              outlineColor: selected ? opt.value : undefined,
+                              outlineWidth: selected ? "2px" : undefined,
+                              outlineStyle: selected ? "solid" : undefined,
+                              outlineOffset: "3px",
                             }}
                             title={`${opt.label}${taken ? " (taken)" : ""}`}
                           />
