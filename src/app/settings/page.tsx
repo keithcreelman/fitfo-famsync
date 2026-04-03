@@ -11,6 +11,7 @@ import {
   Calendar,
   LogOut,
   ChevronRight,
+  Bell,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import CalendarPrivacyPopup from "@/components/CalendarPrivacyPopup";
@@ -26,6 +27,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [calendarPopupOpen, setCalendarPopupOpen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState<"link" | "code" | null>(null);
+  const [dailyDigest, setDailyDigest] = useState(true);
+  const [weeklyDigest, setWeeklyDigest] = useState(true);
 
   const loadData = useCallback(async () => {
     const {
@@ -224,6 +227,70 @@ export default function SettingsPage() {
               <ChevronRight className="w-4 h-4" />
             </div>
           </button>
+        </section>
+
+        {/* Notification Preferences */}
+        <section className="bg-white border border-[var(--color-border)] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
+              Notifications
+            </h2>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
+                <div>
+                  <p className="text-sm font-medium">Daily Digest</p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">Every morning at 7 AM</p>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setDailyDigest(!dailyDigest);
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    await supabase.from("notification_preferences").upsert({
+                      user_id: user.id,
+                      daily_digest: !dailyDigest,
+                      updated_at: new Date().toISOString(),
+                    }, { onConflict: "user_id" });
+                  }
+                }}
+                className={`w-11 h-6 rounded-full transition-colors relative ${dailyDigest ? "bg-[var(--color-primary)]" : "bg-gray-300"}`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${dailyDigest ? "translate-x-5.5 left-[1px]" : "left-[2px]"}`} style={{ transform: dailyDigest ? "translateX(22px)" : "translateX(0)" }} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-[var(--color-text-secondary)]" />
+                <div>
+                  <p className="text-sm font-medium">Weekly Summary</p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">Sunday evenings at 8 PM</p>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setWeeklyDigest(!weeklyDigest);
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    await supabase.from("notification_preferences").upsert({
+                      user_id: user.id,
+                      weekly_digest: !weeklyDigest,
+                      updated_at: new Date().toISOString(),
+                    }, { onConflict: "user_id" });
+                  }
+                }}
+                className={`w-11 h-6 rounded-full transition-colors relative ${weeklyDigest ? "bg-[var(--color-primary)]" : "bg-gray-300"}`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform`} style={{ transform: weeklyDigest ? "translateX(22px)" : "translateX(0)" }} />
+              </button>
+            </div>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              Email delivery coming soon. Digest data is ready — add Resend API key to enable.
+            </p>
+          </div>
         </section>
 
         {/* Sign out */}

@@ -46,6 +46,12 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
   const [rsvpLoaded, setRsvpLoaded] = useState(false);
   const [showRsvpNote, setShowRsvpNote] = useState(false);
 
+  // Comments
+  const [comments, setComments] = useState<{ id: string; user_id: string; body: string; created_at: string; profile?: { display_name: string } }[]>([]);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [commentCount, setCommentCount] = useState(0);
+
   // Load RSVP on mount
   useState(() => {
     if (!userId) return;
@@ -75,6 +81,59 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
       note: rsvpNote || null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "event_id,user_id" });
+  }
+
+  // Load comment count on mount
+  useState(() => {
+    supabase
+      .from("event_comments")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .then(({ count }) => setCommentCount(count || 0));
+  });
+
+  async function loadComments() {
+    const { data } = await supabase
+      .from("event_comments")
+      .select("id, user_id, body, created_at")
+      .eq("event_id", event.id)
+      .order("created_at", { ascending: true });
+
+    // Get profile names for commenters
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data.map((c) => c.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", userIds);
+      const profileMap = new Map((profiles || []).map((p) => [p.id, p.display_name]));
+
+      setComments(data.map((c) => ({
+        ...c,
+        profile: { display_name: profileMap.get(c.user_id) || "Parent" },
+      })));
+    } else {
+      setComments([]);
+    }
+  }
+
+  async function handlePostComment() {
+    if (!newComment.trim() || !userId) return;
+    await supabase.from("event_comments").insert({
+      event_id: event.id,
+      user_id: userId,
+      body: newComment.trim(),
+    });
+    setNewComment("");
+    setCommentCount((c) => c + 1);
+    await loadComments();
+  }
+
+  async function toggleComments() {
+    if (!showComments) {
+      await loadComments();
+    }
+    setShowComments(!showComments);
   }
 
   async function handleRsvpNoteSave() {
@@ -442,6 +501,60 @@ export default function EventCard({ event, allChildren, userId, onDelete, onUpda
                 )}
                 {rsvpNote && !showRsvpNote && (
                   <p className="text-xs text-[var(--color-text-secondary)] mt-1 italic">&quot;{rsvpNote}&quot;</p>
+                )}
+              </div>
+            )}
+
+            {/* Comments */}
+            {userId && (
+              <div className="mt-1.5">
+                <button
+                  onClick={toggleComments}
+                  className="flex items-center gap-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+                >
+                  <MessageSquare className="w-3 h-3" />
+                  {commentCount > 0 ? `${commentCount} comment${commentCount > 1 ? "s" : ""}` : "Add comment"}
+                </button>
+
+                {showComments && (
+                  <div className="mt-2 space-y-2">
+                    {/* Thread */}
+                    {comments.map((c) => (
+                      <div key={c.id} className="flex gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[8px] font-bold text-gray-500 shrink-0 mt-0.5">
+                          {c.profile?.display_name?.charAt(0) || "?"}
+                        </div>
+                        <div>
+                          <p className="text-xs">
+                            <span className="font-medium">{c.profile?.display_name || "Parent"}</span>
+                            <span className="text-[var(--color-text-secondary)] ml-1.5">
+                              {format(new Date(c.created_at), "MMM d, h:mm a")}
+                            </span>
+                          </p>
+                          <p className="text-xs text-[var(--color-text)] mt-0.5">{c.body}</p>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* New comment input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handlePostComment(); }}
+                        placeholder="Add a comment..."
+                        className="flex-1 px-3 py-1.5 border border-[var(--color-border)] rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                      />
+                      <button
+                        onClick={handlePostComment}
+                        disabled={!newComment.trim()}
+                        className="text-xs px-3 py-1.5 bg-[var(--color-primary)] text-white rounded-lg font-medium disabled:opacity-50"
+                      >
+                        Post
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
