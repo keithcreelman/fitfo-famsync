@@ -1,5 +1,9 @@
 export type EventCategory =
   | "school"
+  | "no_school"
+  | "half_day"
+  | "vacation"
+  | "school_misc"
   | "sports"
   | "lacrosse"
   | "soccer"
@@ -278,6 +282,10 @@ export interface ParsedEventData {
 
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
   school: "School",
+  no_school: "No School",
+  half_day: "Half Day",
+  vacation: "Vacation",
+  school_misc: "School Event",
   sports: "Sports",
   lacrosse: "\uD83E\uDD4D Lacrosse",
   soccer: "\u26BD Soccer",
@@ -296,6 +304,10 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
 
 export const CATEGORY_COLORS: Record<EventCategory, string> = {
   school: "#2563eb",
+  no_school: "#dc2626",
+  half_day: "#f59e0b",
+  vacation: "#16a34a",
+  school_misc: "#6366f1",
   sports: "#16a34a",
   lacrosse: "#16a34a",
   soccer: "#16a34a",

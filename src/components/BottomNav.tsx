@@ -22,10 +22,10 @@ export default function BottomNav({
   ];
 
   const menuItems = [
+    { href: "/import/review?type=screenshot", icon: Camera, label: "Import Image / PDF", desc: "Photos, flyers, school calendars" },
+    { href: "/import/review?type=ics", icon: FileText, label: "Import ICS / Calendar Feed", desc: "Upload ICS file or manage feed subscriptions" },
+    { href: "/import/review?type=csv", icon: FileText, label: "Import CSV / Excel", desc: "Spreadsheets from TeamSnap, etc." },
     { href: "/meeting", icon: MessageSquare, label: "Schedule Meeting", desc: "Monthly parent check-in" },
-    { href: "/import/review?type=screenshot", icon: Camera, label: "Import Screenshot / PDF", desc: "Scan a photo, flyer, or school calendar" },
-    { href: "/import/review?type=ics", icon: FileText, label: "Import ICS File", desc: "Upload calendar file" },
-    { href: "/import/review?type=csv", icon: FileText, label: "Import CSV/Excel", desc: "Upload spreadsheet" },
     { href: "/settings", icon: Settings, label: "Settings", desc: "Profile, household, notifications" },
   ];
 

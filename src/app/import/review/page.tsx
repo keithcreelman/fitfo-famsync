@@ -767,19 +767,35 @@ function ImportReviewContent() {
               />
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving || !title || !date}
-              className="w-full py-3 bg-[var(--color-primary)] text-white font-semibold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : editIndex < events.length - 1 ? (
-                "Save & Next Event"
-              ) : (
-                "Save Event"
-              )}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (editIndex < events.length - 1) {
+                    const nextIndex = editIndex + 1;
+                    setEditIndex(nextIndex);
+                    populateFromParsed(events[nextIndex]);
+                  } else {
+                    setSaved(true);
+                  }
+                }}
+                className="flex-1 py-3 border border-[var(--color-border)] text-[var(--color-text-secondary)] font-semibold rounded-xl"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !title || !date}
+                className="flex-1 py-3 bg-[var(--color-primary)] text-white font-semibold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : editIndex < events.length - 1 ? (
+                  "Save & Next"
+                ) : (
+                  "Save Event"
+                )}
+              </button>
+            </div>
           </div>
         )}
       </main>

@@ -76,12 +76,13 @@ Return ONLY a JSON array (no markdown, no explanation) with objects containing:
 - "start_time": "HH:MM" in 24-hour format
 - "end_time": "HH:MM" in 24-hour format
 - "location": venue/location
-- "category": one of: school, sports, medical, band, appointment, other
-- "notes": any extra context (team names, opponent, type like game/training)
+- "category": one of: no_school (days off, professional development, no students), half_day (early release, delayed opening), vacation (spring break, winter break, summer), school_misc (open house, conferences, picture day), school (general school events), sports, lacrosse, soccer, basketball, medical, band, appointment, travel, other
+- "notes": any extra context
+- "all_day": true if no specific time (most school calendar events are all-day)
 
-Example: [{"title":"Game vs Blue","date":"2026-04-12","start_time":"09:00","end_time":"09:55","location":"Tantasqua HS","category":"sports","notes":"HOME game"}]
+For school calendars: use no_school for any day students don't attend, half_day for early release or late start, vacation for multi-day breaks.
 
-Extract EVERY event visible. Return the JSON array only, no other text.`,
+Extract EVERY event/date visible. Return the JSON array only, no other text.`,
             },
           ],
         },
