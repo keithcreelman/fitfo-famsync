@@ -102,15 +102,18 @@ export function estimateDriveFromHome(homeAddress: string, eventLocation: string
   }
 
   if (home.includes("woodstock")) {
-    if (venue.includes("tantasqua") || venue.includes("fiskdale") || venue.includes("sturbridge")) return 20;
-    if (venue.includes("southbridge")) return 10;
-    if (venue.includes("charlton") || venue.includes("dudley")) return 25;
-    if (venue.includes("westborough")) return 40;
-    if (venue.includes("shrewsbury")) return 35;
-    if (venue.includes("milford") || venue.includes("mendon")) return 45;
-    if (venue.includes("boylston")) return 40;
-    if (venue.includes("billerica")) return 65;
-    if (venue.includes("ashburnham")) return 60;
+    if (venue.includes("woodstock")) return 5;
+    if (venue.includes("tantasqua") || venue.includes("fiskdale") || venue.includes("sturbridge")) return 30;
+    if (venue.includes("southbridge")) return 15;
+    if (venue.includes("charlton") || venue.includes("dudley")) return 30;
+    if (venue.includes("westborough")) return 50;
+    if (venue.includes("shrewsbury")) return 45;
+    if (venue.includes("milford") || venue.includes("mendon")) return 50;
+    if (venue.includes("boylston")) return 45;
+    if (venue.includes("billerica")) return 75;
+    if (venue.includes("ashburnham")) return 65;
+    if (venue.includes("putnam")) return 15;
+    if (venue.includes("pomfret") || venue.includes("thompson")) return 15;
   }
 
   // Default: unknown distance
