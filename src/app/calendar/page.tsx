@@ -294,6 +294,14 @@ export default function CalendarPage() {
                       <span className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
                     )}
                   </span>
+                  {/* School indicator emoji */}
+                  {dayEvents.some((ev) => ["no_school", "half_day", "vacation"].includes(ev.category)) && (
+                    <span className={`text-[8px] leading-none mt-0.5 ${isSelected ? "opacity-80" : ""}`}>🚫</span>
+                  )}
+                  {dayEvents.some((ev) => ["school", "school_misc"].includes(ev.category)) &&
+                   !dayEvents.some((ev) => ["no_school", "half_day", "vacation"].includes(ev.category)) && (
+                    <span className={`text-[8px] leading-none mt-0.5 ${isSelected ? "opacity-80" : ""}`}>🏫</span>
+                  )}
                   {/* Event dots */}
                   {dayEvents.length > 0 && (
                     <div className="flex gap-0.5 mt-1">

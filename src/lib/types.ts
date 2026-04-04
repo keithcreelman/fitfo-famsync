@@ -306,7 +306,7 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
   school: "#2563eb",
   no_school: "#dc2626",
   half_day: "#f59e0b",
-  vacation: "#16a34a",
+  vacation: "#0d9488",
   school_misc: "#6366f1",
   sports: "#16a34a",
   lacrosse: "#16a34a",
